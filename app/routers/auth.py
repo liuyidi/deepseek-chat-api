@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -10,6 +10,7 @@ from app.schemas.auth import (
     RegisterRequest,
     TokenResponse,
 )
+from app.schemas.email_auth import EmailCodeStartRequest, EmailCodeStartResponse, EmailCodeVerifyRequest
 from app.services.auth_service import (
     AuthError,
     login_user,
@@ -17,6 +18,7 @@ from app.services.auth_service import (
     refresh_tokens,
     register_user,
 )
+from app.services.email_auth_service import start_email_login, verify_email_login
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -38,6 +40,31 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)) ->
 async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)) -> AuthResponse:
     try:
         return await login_user(db, email=body.email, password=body.password)
+    except AuthError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
+
+
+@router.post("/email/start", response_model=EmailCodeStartResponse)
+async def email_start(
+    body: EmailCodeStartRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> EmailCodeStartResponse:
+    try:
+        return await start_email_login(
+            db,
+            email=body.email,
+            request_ip=request.client.host if request.client else None,
+            user_agent=request.headers.get("user-agent"),
+        )
+    except AuthError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
+
+
+@router.post("/email/verify", response_model=AuthResponse)
+async def email_verify(body: EmailCodeVerifyRequest, db: AsyncSession = Depends(get_db)) -> AuthResponse:
+    try:
+        return await verify_email_login(db, email=body.email, code=body.code)
     except AuthError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
 

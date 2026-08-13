@@ -1,7 +1,4 @@
-# Reverse proxy for auth.liuyidi.me (automatic HTTPS via Let's Encrypt).
-# Why Caddy (not nginx) on this host: see docs/tencent-auth-deploy.md.
-
-auth.liuyidi.me {
+(mini_auth_site) {
 	encode gzip
 
 	header {
@@ -11,9 +8,23 @@ auth.liuyidi.me {
 		-Server
 	}
 
-	# OIDC discovery / JWKS are public; short cache OK (design §14.3).
-	@oidc path /.well-known/* /v1/jwks /jwks.json
-	header @oidc Cache-Control "public, max-age=60"
+	@api path /api/* /health /docs* /openapi.json /redoc* /.well-known/* /v1/jwks /jwks.json /oauth/* /register* /oidc/*
+	handle @api {
+		# API, discovery and legacy HTML routes stay on FastAPI.
+		reverse_proxy api:8000
+	}
 
-	reverse_proxy api:8000
+	handle {
+		root * /srv/www/auth
+		try_files {path} /index.html
+		file_server
+	}
+}
+
+:80 {
+	import mini_auth_site
+}
+
+auth.liuyidi.me {
+	import mini_auth_site
 }

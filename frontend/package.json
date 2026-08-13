@@ -1,0 +1,17 @@
+{
+  "name": "mini-auth-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev:web": "npm run dev -w @mini-auth/web",
+    "build:web": "npm run build -w @mini-auth/web",
+    "build": "npm run build -w @mini-auth/web && npm run build -w @mini-auth/auth-rn"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.0"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
+}

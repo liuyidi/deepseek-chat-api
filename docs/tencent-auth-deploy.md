@@ -1,6 +1,6 @@
 # 腾讯云部署 auth.liuyidi.me（mini-auth）
 
-独立认证服务跑在 **腾讯云 CVM**；业务（bot / mlf / kb）仍在阿里云。域名 DNS 指向腾讯云公网 IP 即可跨云互通。
+独立认证服务跑在 **腾讯云 CVM**；业务（bot / mlf / kb）仍在阿里云。腾讯云先提供一个可通过 **IP 直接访问** 的入口，阿里云的 `auth.liuyidi.me` 再通过 nginx 反代到这台腾讯云 IP。
 
 > **机密信息**：公网 IP、SSH 用户、pem 路径等**不要写进本文件**。  
 > 本机私有副本：复制 [`deploy/host.env.example`](../deploy/host.env.example) → `deploy/host.env`（已 gitignore），或维护个人笔记。
@@ -12,7 +12,7 @@
 | 云厂商 | 腾讯云 CVM（与阿里云业务机分离） |
 | SSH | `ssh -i <PEM> <USER>@<PUBLIC_IP>`（具体值见本地 `deploy/host.env`） |
 | 规格参考 | 约 2C2G；生产建议启用 ≥2G swap |
-| 域名 | `auth.liuyidi.me` → A 记录指向该机公网 IP |
+| 域名 | `auth.liuyidi.me` → 先解析到阿里云 nginx，再反代到腾讯云公网 IP |
 | 代码目录（服务器） | `/opt/auth/mini-auth` |
 | Compose 根目录 | `/opt/auth` |
 
@@ -21,16 +21,20 @@
 ## 架构
 
 ```text
-DNS auth.liuyidi.me ──A──► <TENCENT_PUBLIC_IP>
+DNS auth.liuyidi.me ──A──► <ALIYUN_NGINX_IP>
                               │
-                   Caddy :443 (Let's Encrypt)
+                         nginx
+                              │
+                       http://<TENCENT_PUBLIC_IP>
+                              │
+              Caddy :80 / :443（静态前端 + API 分流）
                               │
                    api :8000  (FastAPI / mini-auth)
                               │
                    Postgres 16 (仅 Docker 内网)
 ```
 
-客户端登录 → `https://auth.liuyidi.me`；拿到 access JWT 后再请求阿里云 `https://bot.liuyidi.me` bootstrap。
+客户端登录 → `https://auth.liuyidi.me`；也可以直接通过腾讯云 IP 访问。拿到 access JWT 后再请求阿里云 `https://bot.liuyidi.me` bootstrap。
 
 ## 反向代理选型：为何用 Caddy（而不是 nginx）
 
@@ -42,14 +46,18 @@ DNS auth.liuyidi.me ──A──► <TENCENT_PUBLIC_IP>
 | 配置量 | 一个 `Caddyfile` 即可 | 站点 + SSL + 续期脚本 |
 | 现状 | auth 机从零搭建 | 阿里云已有多域名 SAN 证书与 nginx，继续沿用更合理 |
 
-**不是** Caddy 比 nginx 更「正确」：阿里云 `bot/mlf/kb` 继续用 nginx；腾讯云 auth 用 Caddy 是为了少运维。若你坚持全栈统一 nginx，可以把 `caddy` 服务换成宿主机 nginx 反代 `127.0.0.1:8000`（需给 api 映射 host 端口）。
+**不是** Caddy 比 nginx 更「正确」：阿里云 `bot/mlf/kb` 继续用 nginx；腾讯云 auth 用 Caddy 是为了少运维。当前这套还额外挂了静态前端目录，`/login` 和 `/login/email` 由前端 SPA 提供，API / OIDC 仍走 FastAPI。若你坚持全栈统一 nginx，可以把 `caddy` 服务换成宿主机 nginx 反代 `127.0.0.1:8000`（需给 api 映射 host 端口）。
 
 ## 架构
 
 ```text
-DNS auth.liuyidi.me ──A──► <TENCENT_PUBLIC_IP>
+DNS auth.liuyidi.me ──A──► <ALIYUN_NGINX_IP>
                               │
-                   Caddy :443 (Let's Encrypt)
+                         nginx
+                              │
+                       http://<TENCENT_PUBLIC_IP>
+                              │
+                   Caddy :80 / :443
                               │
                    api :8000  (FastAPI / mini-auth)
                          │         │
@@ -76,8 +84,9 @@ DNS auth.liuyidi.me ──A──► <TENCENT_PUBLIC_IP>
 - [`deploy/README.md`](../deploy/README.md)
 - [`deploy/setup-docker-mirror.sh`](../deploy/setup-docker-mirror.sh)
 - [`deploy/Dockerfile.ecs`](../deploy/Dockerfile.ecs)（CN 友好构建）
-- [`deploy/docker-compose.yml`](../deploy/docker-compose.yml)（api + Postgres + Redis + Caddy）
+- [`deploy/docker-compose.yml`](../deploy/docker-compose.yml)（api + Postgres + Redis + Caddy + frontend-dist）
 - [`deploy/Caddyfile`](../deploy/Caddyfile)
+- [`deploy/nginx.auth.liuyidi.me.conf.example`](../deploy/nginx.auth.liuyidi.me.conf.example)
 
 ## 0. DNS（若未配）
 
@@ -164,6 +173,11 @@ cp mini-auth/deploy/docker-compose.yml .
 cp mini-auth/deploy/Caddyfile .
 cp mini-auth/deploy/.env.example .env
 # 编辑 .env：强随机 JWT_SECRET、POSTGRES_PASSWORD、REDIS_PASSWORD、CADDY_ACME_EMAIL
+
+# 把前端生产构建结果同步到腾讯云
+cd /path/to/local/mini-auth
+npm run build -w @mini-auth/web
+rsync -a --delete frontend/apps/web/dist/ ubuntu@<TENCENT_PUBLIC_IP>:/opt/auth/frontend-dist/
 nano .env
 
 # 构建上下文指向源码（compose 内 build.context=./mini-auth）
@@ -190,11 +204,27 @@ CORS_ORIGINS=https://bot.liuyidi.me,https://auth.liuyidi.me
 CADDY_ACME_EMAIL=you@example.com
 ```
 
+邮件验证码生产配置：
+
+```bash
+EMAIL_PROVIDER=aliyun_directmail
+EMAIL_FROM=Minibot <noreply@mail.liuyidi.me>
+EMAIL_SENDER_DOMAIN=mail.liuyidi.me
+EMAIL_SENDER_ACCOUNT=noreply
+EMAIL_FROM_ALIAS=Minibot
+EMAIL_TEMPLATE_LOGIN_CODE=auth_login_code
+EMAIL_SERVICE_API_KEY=<Aliyun AccessKey ID>
+EMAIL_SERVICE_SECRET=<Aliyun AccessKey Secret>
+EMAIL_SERVICE_REGION=cn-hangzhou
+EMAIL_DEBUG_RETURN_CODE=false
+```
+
 ## 3. 验收
 
 ```bash
 docker compose -f /opt/auth/docker-compose.yml ps
 curl -fsS http://127.0.0.1:8000/health          # 若直接 expose；默认仅经 Caddy
+curl -fsS http://<TENCENT_PUBLIC_IP>/health
 curl -fsS https://auth.liuyidi.me/health
 curl -fsS -o /dev/null -w "docs %{http_code}\n" https://auth.liuyidi.me/docs
 ```

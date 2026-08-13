@@ -1,0 +1,15 @@
+export const authUiTheme = {
+  background: "#f5efe7",
+  surface: "rgba(255,255,255,0.88)",
+  surfaceStrong: "#fffaf5",
+  card: "#fffaf5",
+  text: "#251c12",
+  muted: "#6a5846",
+  accent: "#c65e2e",
+  accentDeep: "#8f3f1d",
+  border: "rgba(74,56,36,0.14)",
+  dangerBorder: "rgba(176, 65, 54, 0.28)",
+  dangerBg: "rgba(255, 241, 239, 0.95)",
+  dangerText: "#9f3028",
+  shadow: "rgba(72,49,29,0.18)",
+} as const;
