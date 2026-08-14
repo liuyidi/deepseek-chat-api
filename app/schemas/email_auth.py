@@ -17,6 +17,7 @@ class EmailCodeStartResponse(BaseModel):
 class EmailCodeVerifyRequest(BaseModel):
     email: EmailStr
     code: str = Field(min_length=4, max_length=12)
+    nickname: str | None = Field(default=None, max_length=100)
 
 
 class EmailCodeVerifyResponse(AuthResponse):

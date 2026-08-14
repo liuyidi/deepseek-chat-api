@@ -30,6 +30,11 @@ def _normalize_email(email: str) -> str:
     return email.strip().lower()
 
 
+def _normalize_nickname(nickname: str | None, email: str) -> str:
+    value = nickname.strip() if nickname else ""
+    return value or email.split("@", 1)[0]
+
+
 def _hash_code(email: str, code: str) -> str:
     payload = f"{settings.jwt_secret}:{email}:{code}".encode("utf-8")
     return hashlib.sha256(payload).hexdigest()
@@ -142,6 +147,7 @@ async def verify_email_login(
     *,
     email: str,
     code: str,
+    nickname: str | None = None,
 ) -> AuthResponse:
     normalized_email = _normalize_email(email)
     pending = await _get_latest_pending_code(db, normalized_email)
@@ -175,7 +181,7 @@ async def verify_email_login(
         user = User(
             email=normalized_email,
             password_hash=hash_password(uuid.uuid4().hex),
-            nickname=normalized_email.split("@", 1)[0],
+            nickname=_normalize_nickname(nickname, normalized_email),
             created_at=now,
             updated_at=now,
         )

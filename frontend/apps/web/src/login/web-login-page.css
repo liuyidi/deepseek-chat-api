@@ -1,0 +1,332 @@
+:root {
+  color-scheme: light;
+  --mini-color-canvas: #ffffff;
+  --mini-color-ink: #080808;
+  --mini-color-muted: #666666;
+  --mini-color-subtle: #8a8a8a;
+  --mini-color-surface: #f5f5f5;
+  --mini-color-surface-hover: #eeeeee;
+  --mini-color-border: #a8a8a8;
+  --mini-color-focus: #4f46e5;
+  --mini-color-danger: #b42318;
+  --mini-color-danger-surface: #fff1f0;
+  --mini-font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI",
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --mini-radius-control: 10px;
+  --mini-space-auth-width: 400px;
+  --mini-space-auth-top: 96px;
+  --mini-control-height: 48px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--mini-color-canvas);
+  color: var(--mini-color-ink);
+  font-family: var(--mini-font-sans);
+}
+
+a {
+  color: inherit;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.mini-login-page {
+  position: relative;
+  min-height: 100vh;
+  background: var(--mini-color-canvas);
+  color: var(--mini-color-ink);
+}
+
+.mini-login-language {
+  position: fixed;
+  top: 28px;
+  right: 32px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--mini-color-muted);
+  font-size: 14px;
+  line-height: 1;
+}
+
+.mini-login-language button {
+  appearance: none;
+  padding: 4px 2px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 500;
+}
+
+.mini-login-language button:hover,
+.mini-login-language button.is-active {
+  color: var(--mini-color-ink);
+}
+
+.mini-login-language button.is-active {
+  font-weight: 600;
+}
+
+.mini-login-panel {
+  width: min(var(--mini-space-auth-width), calc(100% - 48px));
+  margin: 0 auto;
+  padding: var(--mini-space-auth-top) 0 40px;
+  text-align: center;
+}
+
+.mini-login-brand {
+  display: inline-block;
+  color: var(--mini-color-ink);
+  font-size: 44px;
+  font-weight: 820;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.mini-login-panel h1 {
+  margin: 50px 0 30px;
+  color: var(--mini-color-ink);
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 1.12;
+  letter-spacing: 0;
+}
+
+.mini-login-providers {
+  display: grid;
+  gap: 18px;
+}
+
+.mini-login-provider {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--mini-control-height);
+  width: 100%;
+  gap: 12px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--mini-radius-control);
+  background: var(--mini-color-surface);
+  color: var(--mini-color-ink);
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.mini-login-provider:hover:not(:disabled) {
+  background: var(--mini-color-surface-hover);
+}
+
+.mini-login-provider:disabled {
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+.mini-login-provider-icon {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+}
+
+.mini-login-provider.is-disabled > svg,
+.mini-login-provider.is-disabled > span:not(.mini-login-provider-overlay) {
+  opacity: 0.34;
+}
+
+.mini-login-provider-overlay {
+  position: absolute;
+  inset: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: inherit;
+  background: rgba(245, 245, 245, 0.82);
+  color: var(--mini-color-ink);
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.mini-login-divider {
+  margin: 36px 0 32px;
+  color: var(--mini-color-muted);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.mini-login-error {
+  margin: 0 0 18px;
+  padding: 12px 14px;
+  border-radius: var(--mini-radius-control);
+  background: var(--mini-color-danger-surface);
+  color: var(--mini-color-danger);
+  font-size: 14px;
+  line-height: 1.45;
+  text-align: left;
+}
+
+.mini-login-form {
+  display: grid;
+  gap: 18px;
+}
+
+.mini-login-field {
+  display: grid;
+  gap: 12px;
+  text-align: left;
+}
+
+.mini-login-field span {
+  color: var(--mini-color-ink);
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.mini-login-field input {
+  width: 100%;
+  min-height: var(--mini-control-height);
+  padding: 0 14px;
+  border: 1px solid var(--mini-color-border);
+  border-radius: var(--mini-radius-control);
+  background: var(--mini-color-canvas);
+  color: var(--mini-color-ink);
+  font-size: 18px;
+  line-height: 1;
+  outline: 0;
+}
+
+.mini-login-field input:focus {
+  border-color: var(--mini-color-focus);
+  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.16);
+}
+
+.mini-login-continue {
+  min-height: var(--mini-control-height);
+  border: 0;
+  border-radius: var(--mini-radius-control);
+  background: var(--mini-color-ink);
+  color: var(--mini-color-canvas);
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.mini-login-continue:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.mini-login-resend {
+  margin: 30px 0 0;
+  color: #333333;
+  font-size: 18px;
+  line-height: 1.35;
+}
+
+.mini-login-resend a,
+.mini-login-resend button {
+  appearance: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--mini-color-ink);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.mini-login-resend button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.mini-login-debug {
+  margin: 20px auto 0;
+  padding: 10px 12px;
+  border-radius: var(--mini-radius-control);
+  background: var(--mini-color-surface);
+  color: var(--mini-color-muted);
+  font-size: 13px;
+}
+
+.mini-login-footer {
+  margin-top: 58px;
+  color: var(--mini-color-subtle);
+  font-size: 16px;
+  line-height: 1;
+}
+
+.mini-login-footer strong {
+  color: var(--mini-color-ink);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+@media (max-width: 760px) {
+  .mini-login-language {
+    top: 18px;
+    right: 20px;
+  }
+
+  .mini-login-panel {
+    width: min(100% - 32px, var(--mini-space-auth-width));
+    padding-top: 56px;
+  }
+
+  .mini-login-brand {
+    font-size: 40px;
+  }
+
+  .mini-login-panel h1 {
+    margin: 42px 0 28px;
+    font-size: 24px;
+  }
+
+  .mini-login-provider,
+  .mini-login-field input,
+  .mini-login-continue {
+    min-height: 48px;
+    font-size: 18px;
+  }
+
+  .mini-login-provider-icon {
+    width: 24px;
+    height: 24px;
+  }
+
+  .mini-login-field span,
+  .mini-login-divider,
+  .mini-login-resend {
+    font-size: 18px;
+  }
+
+  .mini-login-footer {
+    margin-top: 52px;
+    font-size: 16px;
+  }
+}

@@ -1,4 +1,5 @@
 import hashlib
+import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -285,6 +286,31 @@ async def login_user(db: AsyncSession, *, email: str, password: str) -> AuthResp
     user = await get_user_by_email(db, email)
     if user is None or not verify_password(password, user.password_hash):
         raise AuthError("Invalid email or password", status_code=401)
+
+    tokens = await issue_tokens(db, user)
+    return AuthResponse(user=to_user_response(user), tokens=tokens)
+
+
+async def demo_login_user(
+    db: AsyncSession,
+    *,
+    email: str = "demo@mini-auth.dev",
+    nickname: str = "demo",
+) -> AuthResponse:
+    normalized_email = email.strip().lower()
+    normalized_nickname = nickname.strip()
+    if normalized_email != "demo@mini-auth.dev" or normalized_nickname != "demo":
+        raise AuthError("Demo login is only available for the demo user", status_code=400)
+
+    user = await get_user_by_email(db, normalized_email)
+    if user is None:
+        user = User(
+            email=normalized_email,
+            password_hash=hash_password(secrets.token_urlsafe(32)),
+            nickname=normalized_nickname,
+        )
+        db.add(user)
+        await db.flush()
 
     tokens = await issue_tokens(db, user)
     return AuthResponse(user=to_user_response(user), tokens=tokens)

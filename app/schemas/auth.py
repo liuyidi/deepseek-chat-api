@@ -15,6 +15,11 @@ class LoginRequest(BaseModel):
     password: str = Field(min_length=1, max_length=128)
 
 
+class DemoLoginRequest(BaseModel):
+    email: EmailStr = "demo@mini-auth.dev"
+    nickname: str = Field(default="demo", min_length=1, max_length=100)
+
+
 class RefreshRequest(BaseModel):
     refresh_token: str
 

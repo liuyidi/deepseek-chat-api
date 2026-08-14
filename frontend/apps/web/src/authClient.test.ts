@@ -1,0 +1,115 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { createWebAuthClient } from "./authClient";
+
+describe("createWebAuthClient", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("falls back to the dev mock code flow when local fetch fails", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
+    vi.stubEnv("VITE_AUTH_MOCK", "true");
+
+    const client = createWebAuthClient("http://127.0.0.1:8000");
+    const result = await client.startEmailLogin("Hello@Mini.Dev");
+
+    expect(result).toMatchObject({
+      email: "hello@mini.dev",
+      debug_code: "123456",
+    });
+
+    await expect(client.verifyEmailLogin("hello@mini.dev", "123456")).resolves.toBeUndefined();
+    expect(document.cookie).toContain("mini_auth_access_token=mini-auth-dev-access-token");
+  });
+
+  it("keeps backend validation errors instead of using mock fallback", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ detail: "Too many requests" }), {
+          status: 429,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+
+    const client = createWebAuthClient("http://127.0.0.1:8000");
+
+    await expect(client.startEmailLogin("hello@mini.dev")).rejects.toThrow("Too many requests");
+  });
+
+  it("sends nickname when verifying an email code with a username", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          tokens: {
+            access_token: "access",
+            refresh_token: "refresh",
+            token_type: "bearer",
+            expires_in: 1800,
+          },
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createWebAuthClient("http://127.0.0.1:8000");
+    await client.verifyEmailLogin("hello@mini.dev", "123456", { username: "Yidi" });
+
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+      email: "hello@mini.dev",
+      code: "123456",
+      nickname: "Yidi",
+    });
+  });
+
+  it("requests a backend demo session without email verification", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          user: {
+            id: "00000000-0000-0000-0000-000000000001",
+            email: "demo@mini-auth.dev",
+            nickname: "demo",
+            created_at: "2026-08-14T00:00:00Z",
+          },
+          tokens: {
+            access_token: "access",
+            refresh_token: "refresh",
+            token_type: "bearer",
+            expires_in: 1800,
+          },
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createWebAuthClient("http://127.0.0.1:8000");
+
+    await client.demoLogin({
+      email: "demo@mini-auth.dev",
+      username: "demo",
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith("http://127.0.0.1:8000/api/v1/auth/demo-login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email: "demo@mini-auth.dev",
+        nickname: "demo",
+      }),
+    });
+    expect(document.cookie).toContain("mini_auth_access_token=access");
+  });
+});

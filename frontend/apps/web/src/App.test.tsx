@@ -6,6 +6,10 @@ import App, { resolveAppRoute } from "./App";
 describe("resolveAppRoute", () => {
   it.each([
     ["/", "login"],
+    ["/demo-login", "demo-login"],
+    ["/demo-login/", "demo-login"],
+    ["/register", "register"],
+    ["/register/", "register"],
     ["/accounts", "security-redirect"],
     ["/accounts/", "security-redirect"],
     ["/accounts/security", "security"],
@@ -24,6 +28,6 @@ describe("App", () => {
     render(<App />);
 
     expect(screen.getByText("正在加载安全中心…")).toBeInTheDocument();
-    expect(screen.queryByText("欢迎来到Minibot")).not.toBeInTheDocument();
+    expect(screen.queryByText("Hey friend! Welcome back")).not.toBeInTheDocument();
   });
 });

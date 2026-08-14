@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.schemas.auth import (
     AuthResponse,
+    DemoLoginRequest,
     LoginRequest,
     LogoutRequest,
     RefreshRequest,
@@ -13,6 +14,7 @@ from app.schemas.auth import (
 from app.schemas.email_auth import EmailCodeStartRequest, EmailCodeStartResponse, EmailCodeVerifyRequest
 from app.services.auth_service import (
     AuthError,
+    demo_login_user,
     login_user,
     logout_user,
     refresh_tokens,
@@ -44,6 +46,14 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)) -> AuthR
         raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
 
 
+@router.post("/demo-login", response_model=AuthResponse)
+async def demo_login(body: DemoLoginRequest, db: AsyncSession = Depends(get_db)) -> AuthResponse:
+    try:
+        return await demo_login_user(db, email=body.email, nickname=body.nickname)
+    except AuthError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
+
+
 @router.post("/email/start", response_model=EmailCodeStartResponse)
 async def email_start(
     body: EmailCodeStartRequest,
@@ -64,7 +74,7 @@ async def email_start(
 @router.post("/email/verify", response_model=AuthResponse)
 async def email_verify(body: EmailCodeVerifyRequest, db: AsyncSession = Depends(get_db)) -> AuthResponse:
     try:
-        return await verify_email_login(db, email=body.email, code=body.code)
+        return await verify_email_login(db, email=body.email, code=body.code, nickname=body.nickname)
     except AuthError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
 
