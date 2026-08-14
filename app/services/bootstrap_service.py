@@ -14,6 +14,7 @@ BOT_HTTP_REDIRECT_URI = "http://bot.liuyidi.me/auth/mini-auth/callback"
 BOT_HTTPS_REDIRECT_URI = "https://bot.liuyidi.me/auth/mini-auth/callback"
 MINIBOT_REDIRECT_URI = "http://127.0.0.1:8766/auth/mini-auth/callback"
 MINIBOT_LOCALHOST_REDIRECT_URI = "http://localhost:8766/auth/mini-auth/callback"
+MINIBOT_DESKTOP_REDIRECT_URI = "minibot://auth/callback"
 DEMO_ALLOWED_SCOPES = ["openid", "profile", "email"]
 LEGACY_DEMO_REDIRECT_URI = "http://127.0.0.1:8000/oidc/demo/callback"
 DEFAULT_REDIRECT_URIS = list(
@@ -24,6 +25,7 @@ DEFAULT_REDIRECT_URIS = list(
             BOT_HTTPS_REDIRECT_URI,
             MINIBOT_REDIRECT_URI,
             MINIBOT_LOCALHOST_REDIRECT_URI,
+            MINIBOT_DESKTOP_REDIRECT_URI,
         ]
     )
 )
