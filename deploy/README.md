@@ -79,6 +79,25 @@ EXTERNAL_AUTH_COOKIE_SECURE=true
 构建登录页时设置 `VITE_GITHUB_LOGIN_ENABLED=true`。后端未配置完整凭据前必须保持
 前后端开关为 `false`。GitHub access token 仅用于当次读取 `read:user user:email`，不会持久化。
 
+## GitHub Actions 发布
+
+工作流：[`.github/workflows/publish-auth-tencent.yml`](../.github/workflows/publish-auth-tencent.yml)
+
+| 触发 | `workflow_dispatch`，或 `main` 上改动 `app/` / `frontend/` / `deploy/` 等 |
+| 作用 | 拉代码 → CI 构建 SPA → 上传 `frontend-dist` → `docker compose build api && up -d` → 健康检查 → ServerlessShip / 飞书 |
+
+仓库需配置：
+
+| 类型 | 名 | 说明 |
+|------|-----|------|
+| Variable | `AUTH_HOST` | 腾讯云 CVM 公网 IP / 主机名 |
+| Variable | `AUTH_SSH_USER` | 默认 `ubuntu` |
+| Variable | `AUTH_SSH_PORT` | 可选，默认 `22` |
+| Variable | `VITE_AUTH_BASE_URL` | 可选，默认 `https://auth.liuyidi.me` |
+| Variable | `VITE_GITHUB_LOGIN_ENABLED` | 可选，默认 `true` |
+| Variable | `SERVERLESSSHIP_RELEASE_URL` | 可选 |
+| Secret | `AUTH_SSH_PRIVATE_KEY` | 对应本机 `deploy/host.env` 的 PEM 内容 |
+
 ## Files
 
 | File | Purpose |

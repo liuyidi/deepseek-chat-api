@@ -1,0 +1,205 @@
+name: Publish Auth (Tencent CVM)
+
+# Rebuild mini-auth API + login SPA on the Tencent CVM host
+# (auth.liuyidi.me → /opt/auth), then notify Feishu via ServerlessShip.
+#
+# Required repo settings:
+#   vars:  AUTH_HOST, AUTH_SSH_USER (optional AUTH_SSH_PORT, SERVERLESSSHIP_RELEASE_URL)
+#   secrets: AUTH_SSH_PRIVATE_KEY
+#
+# Trigger: push to main touching auth/API/frontend/deploy paths, or Actions → Run workflow.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - "alembic/**"
+      - "frontend/**"
+      - "deploy/**"
+      - "requirements.txt"
+      - "Dockerfile"
+      - "alembic.ini"
+      - ".github/workflows/publish-auth-tencent.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  publish-auth:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    env:
+      AUTH_HOST: ${{ vars.AUTH_HOST }}
+      AUTH_SSH_USER: ${{ vars.AUTH_SSH_USER || 'ubuntu' }}
+      AUTH_SSH_PORT: ${{ vars.AUTH_SSH_PORT || 22 }}
+
+    outputs:
+      short_sha: ${{ steps.meta.outputs.short_sha }}
+
+    steps:
+      - name: Require AUTH_HOST
+        run: |
+          set -euo pipefail
+          if [[ -z "${AUTH_HOST:-}" ]]; then
+            echo "Set repository variable AUTH_HOST to the Tencent CVM public IP (or hostname)." >&2
+            exit 1
+          fi
+
+      - name: Resolve deploy metadata
+        id: meta
+        run: |
+          echo "short_sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Build login SPA
+        working-directory: frontend
+        env:
+          VITE_AUTH_BASE_URL: ${{ vars.VITE_AUTH_BASE_URL || 'https://auth.liuyidi.me' }}
+          VITE_GITHUB_LOGIN_ENABLED: ${{ vars.VITE_GITHUB_LOGIN_ENABLED || 'true' }}
+        run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile
+          pnpm run build:web
+          test -f apps/web/dist/index.html
+
+      - name: Pull mini-auth commit on CVM
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ env.AUTH_HOST }}
+          username: ${{ env.AUTH_SSH_USER }}
+          key: ${{ secrets.AUTH_SSH_PRIVATE_KEY }}
+          port: ${{ env.AUTH_SSH_PORT }}
+          command_timeout: 5m
+          script: |
+            set -euo pipefail
+            git config --global --add safe.directory /opt/auth/mini-auth
+            cd /opt/auth/mini-auth
+            git fetch origin "${{ github.sha }}"
+            git reset --hard "${{ github.sha }}"
+            echo "HEAD=$(git rev-parse --short HEAD)"
+            git log -1 --oneline
+            # Keep compose/Caddyfile in sync with the repo (never touch .env).
+            cp -f deploy/docker-compose.yml /opt/auth/docker-compose.yml
+            cp -f deploy/Caddyfile /opt/auth/Caddyfile
+            mkdir -p /opt/auth/frontend-dist
+
+      - name: Upload frontend dist
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ env.AUTH_HOST }}
+          username: ${{ env.AUTH_SSH_USER }}
+          key: ${{ secrets.AUTH_SSH_PRIVATE_KEY }}
+          port: ${{ env.AUTH_SSH_PORT }}
+          source: "frontend/apps/web/dist/*"
+          target: "/opt/auth/frontend-dist"
+          strip_components: 4
+          overwrite: true
+          rm: true
+
+      - name: Rebuild API and restart stack
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ env.AUTH_HOST }}
+          username: ${{ env.AUTH_SSH_USER }}
+          key: ${{ secrets.AUTH_SSH_PRIVATE_KEY }}
+          port: ${{ env.AUTH_SSH_PORT }}
+          command_timeout: 35m
+          script: |
+            set -euo pipefail
+            cd /opt/auth
+            docker compose --env-file .env build api
+            docker compose --env-file .env up -d
+            docker compose --env-file .env ps
+
+      - name: Wait for /health
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ env.AUTH_HOST }}
+          username: ${{ env.AUTH_SSH_USER }}
+          key: ${{ secrets.AUTH_SSH_PRIVATE_KEY }}
+          port: ${{ env.AUTH_SSH_PORT }}
+          command_timeout: 5m
+          script: |
+            set -euo pipefail
+            ok=0
+            for i in $(seq 1 40); do
+              if curl -fsS --max-time 3 http://127.0.0.1/health >/tmp/auth-health.json \
+                || curl -fsS --max-time 3 https://127.0.0.1/health >/tmp/auth-health.json; then
+                echo "health ok after ${i} attempt(s): $(cat /tmp/auth-health.json)"
+                ok=1
+                break
+              fi
+              echo "waiting for auth health (${i}/40)..."
+              sleep 3
+            done
+            if [[ "$ok" -ne 1 ]]; then
+              echo "auth health check failed; recent logs:"
+              docker compose -f /opt/auth/docker-compose.yml --env-file /opt/auth/.env logs api --tail 120 || true
+              docker compose -f /opt/auth/docker-compose.yml --env-file /opt/auth/.env logs caddy --tail 80 || true
+              exit 1
+            fi
+
+      - name: Verify public URL
+        run: |
+          set -euo pipefail
+          curl -fsS -o /dev/null -w "public auth %{http_code}\n" https://auth.liuyidi.me/health || true
+
+  notify-serverlessship:
+    needs: publish-auth
+    if: ${{ needs.publish-auth.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      SERVERLESSSHIP_RELEASE_URL: ${{ vars.SERVERLESSSHIP_RELEASE_URL }}
+
+    steps:
+      - name: Send deploy notification to ServerlessShip
+        run: |
+          set -euo pipefail
+
+          serverlessship_release_url="${SERVERLESSSHIP_RELEASE_URL:-https://serverless-ship.liuyidi.me/api/releases}"
+
+          payload="$(node -e 'process.stdout.write(JSON.stringify({
+            project: "mini-auth",
+            version: process.env.RELEASE_VERSION,
+            tag: process.env.RELEASE_SHA,
+            repository: process.env.GITHUB_REPOSITORY,
+            releaseUrl: process.env.RELEASE_URL,
+            workflowUrl: process.env.WORKFLOW_URL,
+            channel: "Tencent CVM",
+          }));')"
+
+          response="$(
+            curl -fsS \
+              -X POST \
+              -H "Content-Type: application/json" \
+              -d "$payload" \
+              "$serverlessship_release_url"
+          )"
+
+          echo "$response"
+        env:
+          RELEASE_VERSION: ${{ needs.publish-auth.outputs.short_sha }}
+          RELEASE_SHA: ${{ github.sha }}
+          RELEASE_URL: https://auth.liuyidi.me/
+          WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

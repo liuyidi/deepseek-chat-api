@@ -81,6 +81,8 @@ uvicorn app.main:app --reload --port 8000
 
 见 [`docs/tencent-auth-deploy.md`](docs/tencent-auth-deploy.md) 与 [`deploy/`](deploy/)。
 
+CI：[`Publish Auth (Tencent CVM)`](.github/workflows/publish-auth-tencent.yml)（`main` 相关路径自动部署，或 Actions 手动跑；成功后经 ServerlessShip 发飞书）。配置项见 [`deploy/README.md`](deploy/README.md#github-actions-发布)。
+
 ## 环境变量
 
 见 [`.env.example`](.env.example) 与 [`deploy/.env.example`](deploy/.env.example)。
