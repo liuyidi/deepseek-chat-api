@@ -15,3 +15,5 @@ dist/
 build/
 *.db
 node_modules/
+*.pem
+.DS_Store
