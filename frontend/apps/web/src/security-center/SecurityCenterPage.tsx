@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
+import "./security-center.css";
+
 import type {
   AuthorizedApplication,
   SecurityCenterDataSource,
@@ -116,8 +118,10 @@ export function SecurityCenterPage({ dataSource }: SecurityCenterPageProps) {
   useEffect(() => {
     const previousTitle = document.title;
     document.title = "Mini Auth 账号安全中心";
+    document.body.classList.add("security-body");
     return () => {
       document.title = previousTitle;
+      document.body.classList.remove("security-body");
     };
   }, []);
 
