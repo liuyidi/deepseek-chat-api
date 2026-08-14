@@ -22,6 +22,12 @@ class ExternalAuthStateTest(unittest.TestCase):
                     normalize_return_url(value)
                 self.assertEqual(caught.exception.code, "invalid_return_url")
 
+    def test_rejects_malformed_absolute_return_urls(self) -> None:
+        for value in ("https://auth.liuyidi.me:notaport/", "https://[broken/"):
+            with self.subTest(value=value), self.assertRaises(ExternalAuthError) as caught:
+                normalize_return_url(value)
+            self.assertEqual(caught.exception.code, "invalid_return_url")
+
     def test_signed_context_round_trips_and_contains_pkce(self) -> None:
         token, state, challenge = create_oauth_context("github", "/accounts/security/")
 
@@ -43,6 +49,10 @@ class ExternalAuthStateTest(unittest.TestCase):
         with self.assertRaises(ExternalAuthError) as state_error:
             decode_oauth_context(token, "github", "wrong-state")
         self.assertEqual(state_error.exception.code, "oauth_state_invalid")
+
+        with self.assertRaises(ExternalAuthError) as unicode_error:
+            decode_oauth_context(token, "github", "状态")
+        self.assertEqual(unicode_error.exception.code, "oauth_state_invalid")
 
 
 if __name__ == "__main__":

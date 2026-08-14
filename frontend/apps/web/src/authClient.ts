@@ -126,7 +126,7 @@ export function createWebAuthClient(baseUrl: string) {
             headers: {
               "Content-Type": "application/json",
             },
-            body: JSON.stringify(refreshToken ? { refresh_token: refreshToken } : {}),
+            ...(refreshToken ? { body: JSON.stringify({ refresh_token: refreshToken }) } : {}),
           });
           const refreshData = (await refreshResponse.json().catch(() => ({}))) as AuthResponse["tokens"] &
             AuthResponse;

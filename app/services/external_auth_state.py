@@ -16,7 +16,12 @@ PURPOSE = "external_oauth_context"
 
 def normalize_return_url(value: str | None) -> str:
     candidate = (value or "/").strip()
-    parsed = urlsplit(candidate)
+    try:
+        parsed = urlsplit(candidate)
+        hostname = parsed.hostname
+        port = parsed.port
+    except ValueError as exc:
+        raise ExternalAuthError("invalid_return_url") from exc
     if parsed.fragment or parsed.username or parsed.password:
         raise ExternalAuthError("invalid_return_url")
 
@@ -25,11 +30,11 @@ def normalize_return_url(value: str | None) -> str:
             raise ExternalAuthError("invalid_return_url")
         return candidate
 
-    if parsed.scheme != "https" or not parsed.hostname:
+    if parsed.scheme != "https" or not hostname:
         raise ExternalAuthError("invalid_return_url")
-    origin = f"{parsed.scheme}://{parsed.hostname}"
-    if parsed.port is not None:
-        origin += f":{parsed.port}"
+    origin = f"{parsed.scheme}://{hostname}"
+    if port is not None:
+        origin += f":{port}"
     if origin not in settings.external_auth_allowed_return_origin_list:
         raise ExternalAuthError("invalid_return_url")
     return candidate
@@ -63,6 +68,8 @@ def decode_oauth_context(token: str, provider: str, state: str) -> OAuthState:
         payload = jwt.decode(token, settings.jwt_secret, algorithms=[ALGORITHM], audience=AUDIENCE)
     except JWTError as exc:
         raise ExternalAuthError("oauth_state_invalid") from exc
+    if not isinstance(state, str) or not state.isascii():
+        raise ExternalAuthError("oauth_state_invalid")
     if (
         payload.get("purpose") != PURPOSE
         or payload.get("provider") != provider

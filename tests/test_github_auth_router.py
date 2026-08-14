@@ -99,6 +99,24 @@ class GitHubAuthRouterTest(unittest.TestCase):
             "/login?oauth_error=oauth_callback_denied&next=%2Foauth%2Fauthorize%3Fclient_id%3Dminibot",
         )
 
+    def test_callback_cleans_context_when_provider_becomes_disabled(self) -> None:
+        signed, state, _ = create_oauth_context("github", "/accounts/security/")
+        self.client.cookies.set(OAUTH_CONTEXT_COOKIE, signed, path="/api/v1/auth/github/callback")
+        with patch("app.routers.github_auth.settings.github_enabled", False):
+            response = self.client.get(
+                f"/api/v1/auth/github/callback?code=code&state={state}",
+                follow_redirects=False,
+            )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.headers["location"], "/login?oauth_error=provider_disabled")
+        self.assertTrue(
+            any(
+                f"{OAUTH_CONTEXT_COOKIE}=" in value and "Max-Age=0" in value
+                for value in response.headers.get_list("set-cookie")
+            )
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

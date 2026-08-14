@@ -18,9 +18,9 @@ CALLBACK_PATH = "/api/v1/auth/github/callback"
 
 def _provider() -> GitHubAuthProvider:
     if not settings.github_enabled:
-        raise HTTPException(status_code=503, detail="provider_disabled")
+        raise ExternalAuthError("provider_disabled", status_code=503)
     if not settings.github_client_id or not settings.github_client_secret:
-        raise HTTPException(status_code=503, detail="provider_not_configured")
+        raise ExternalAuthError("provider_not_configured", status_code=503)
     return GitHubAuthProvider()
 
 
