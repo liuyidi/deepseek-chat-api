@@ -1,6 +1,7 @@
 from urllib.parse import urlencode
 
 import httpx
+import logging
 
 from app.config import settings
 from app.services.external_auth_types import (
@@ -9,6 +10,9 @@ from app.services.external_auth_types import (
     OAuthStartContext,
     ProviderIdentity,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 class GitHubAuthProvider:
@@ -61,8 +65,15 @@ class GitHubAuthProvider:
                 },
             )
             token_response.raise_for_status()
-            access_token = token_response.json().get("access_token")
+            token_payload = token_response.json()
+            access_token = token_payload.get("access_token")
             if not isinstance(access_token, str) or not access_token:
+                logger.warning(
+                    "GitHub token exchange returned no access token: status=%s payload_keys=%s error=%s",
+                    token_response.status_code,
+                    sorted(token_payload.keys()) if isinstance(token_payload, dict) else type(token_payload).__name__,
+                    token_payload.get("error") if isinstance(token_payload, dict) else None,
+                )
                 raise ExternalAuthError("provider_exchange_failed", status_code=502)
             auth_headers = {**headers, "Authorization": f"Bearer {access_token}"}
             profile_response = await client.get("https://api.github.com/user", headers=auth_headers)
@@ -74,6 +85,7 @@ class GitHubAuthProvider:
         except ExternalAuthError:
             raise
         except (httpx.HTTPError, ValueError, AttributeError) as exc:
+            logger.warning("GitHub token exchange failed: %s", exc.__class__.__name__, exc_info=True)
             raise ExternalAuthError("provider_exchange_failed", status_code=502) from exc
         finally:
             if owns_client:
