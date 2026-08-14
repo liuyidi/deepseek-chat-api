@@ -134,7 +134,7 @@ GitHub 首次登录策略：
 
 - 必须存在 primary + verified 邮箱。
 - 若本地不存在同邮箱用户：创建用户和 `user_identities`，用户昵称优先使用 GitHub name，其次 login，头像使用 GitHub avatar。
-- 若本地已存在同邮箱用户但没有该 GitHub 身份：返回 `account_link_required`，不创建、不登录、不自动绑定。
+- 若本地已存在同邮箱用户但没有该 GitHub 身份：在邮箱已验证的前提下自动绑定并登录该用户（不新建账号）。
 - 数据库唯一约束冲突时重新查询身份；若仍无法解析，则安全失败，避免并发请求创建重复账号。
 
 未来 provider 策略：
@@ -251,7 +251,7 @@ EXTERNAL_AUTH_ALLOWED_RETURN_ORIGINS=https://auth.liuyidi.me
 - 无 primary verified email。
 - 已绑定身份重复登录。
 - 首次登录创建用户及身份。
-- 同邮箱未绑定返回 `account_link_required`。
+- 同邮箱已验证则自动绑定并登录。
 - 上游拒绝、超时、异常响应。
 - 非法或过期 state、provider 不匹配。
 - 安全 next 校验。

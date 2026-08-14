@@ -60,21 +60,33 @@ class ExternalIdentityServiceTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(identity.provider_subject, "12345")
         self.assertIs(identity.user, user)
 
-    async def test_rejects_existing_email_without_link(self) -> None:
+    async def test_links_verified_email_to_existing_account(self) -> None:
+        existing_user = User(
+            email="person@example.com",
+            password_hash="existing-hash",
+            nickname="Existing",
+        )
         result = MagicMock()
         result.scalar_one_or_none.return_value = None
         db = MagicMock()
         db.execute = AsyncMock(return_value=result)
+        db.commit = AsyncMock()
+        added: list[object] = []
+        db.add.side_effect = added.append
 
         with patch(
             "app.services.external_identity_service.get_user_by_email",
-            new=AsyncMock(return_value=SimpleNamespace(id="existing")),
+            new=AsyncMock(return_value=existing_user),
         ):
-            with self.assertRaises(ExternalAuthError) as caught:
-                await resolve_external_identity(db, github_identity())
+            resolved = await resolve_external_identity(db, github_identity())
 
-        self.assertEqual(caught.exception.code, "account_link_required")
-        db.add.assert_not_called()
+        self.assertIs(resolved, existing_user)
+        identity = next(item for item in added if isinstance(item, UserIdentity))
+        self.assertEqual(identity.provider, "github")
+        self.assertEqual(identity.provider_subject, "12345")
+        self.assertEqual(identity.email, "person@example.com")
+        self.assertIs(identity.user, existing_user)
+        db.commit.assert_awaited_once()
 
     async def test_requires_verified_email_for_new_github_identity(self) -> None:
         result = MagicMock()

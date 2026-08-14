@@ -12,7 +12,7 @@
 
 - Identify external accounts only by `(provider, provider_subject)`, never by mutable username or email.
 - GitHub account creation requires a primary verified email.
-- Never silently merge an unbound GitHub identity into an existing same-email account; return `account_link_required`.
+- When an unbound GitHub identity has a verified email matching an existing account, auto-link and sign in; do not create a duplicate user.
 - Request only `read:user user:email`; do not persist or expose the GitHub access token.
 - Validate OAuth state, PKCE context, expiry, provider, and return URL.
 - Keep provider secrets and OAuth temporary credentials server-side.

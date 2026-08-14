@@ -9,6 +9,38 @@ from app.services.auth_service import get_user_by_email, hash_password
 from app.services.external_auth_types import ExternalAuthError, ProviderIdentity
 
 
+def _build_identity(user: User, identity: ProviderIdentity, email: str) -> UserIdentity:
+    return UserIdentity(
+        user=user,
+        provider=identity.provider,
+        provider_subject=identity.subject,
+        provider_union_id=identity.union_id,
+        email=email,
+        email_verified=True,
+        display_name=identity.display_name,
+        avatar_url=identity.avatar_url,
+    )
+
+
+async def _link_identity(db: AsyncSession, user: User, identity: ProviderIdentity, email: str) -> User:
+    db.add(_build_identity(user, identity, email))
+    try:
+        await db.commit()
+        return user
+    except IntegrityError as exc:
+        await db.rollback()
+        raced = await db.execute(
+            select(UserIdentity).where(
+                UserIdentity.provider == identity.provider,
+                UserIdentity.provider_subject == identity.subject,
+            )
+        )
+        existing_identity = raced.scalar_one_or_none()
+        if existing_identity is not None and existing_identity.user.deleted_at is None:
+            return existing_identity.user
+        raise ExternalAuthError("external_identity_conflict", status_code=409) from exc
+
+
 async def resolve_external_identity(db: AsyncSession, identity: ProviderIdentity) -> User:
     result = await db.execute(
         select(UserIdentity).where(
@@ -30,8 +62,10 @@ async def resolve_external_identity(db: AsyncSession, identity: ProviderIdentity
     if not identity.email or identity.email_verified is not True:
         raise ExternalAuthError("verified_email_required", status_code=422)
     email = identity.email.strip().lower()
-    if await get_user_by_email(db, email) is not None:
-        raise ExternalAuthError("account_link_required", status_code=409)
+
+    existing_user = await get_user_by_email(db, email)
+    if existing_user is not None:
+        return await _link_identity(db, existing_user, identity, email)
 
     user = User(
         email=email,
@@ -41,17 +75,7 @@ async def resolve_external_identity(db: AsyncSession, identity: ProviderIdentity
     )
     db.add(user)
     await db.flush()
-    external_identity = UserIdentity(
-        user=user,
-        provider=identity.provider,
-        provider_subject=identity.subject,
-        provider_union_id=identity.union_id,
-        email=email,
-        email_verified=True,
-        display_name=identity.display_name,
-        avatar_url=identity.avatar_url,
-    )
-    db.add(external_identity)
+    db.add(_build_identity(user, identity, email))
     try:
         await db.commit()
         return user
@@ -66,6 +90,7 @@ async def resolve_external_identity(db: AsyncSession, identity: ProviderIdentity
         existing_identity = raced.scalar_one_or_none()
         if existing_identity is not None and existing_identity.user.deleted_at is None:
             return existing_identity.user
-        if await get_user_by_email(db, email) is not None:
-            raise ExternalAuthError("account_link_required", status_code=409) from exc
+        raced_user = await get_user_by_email(db, email)
+        if raced_user is not None:
+            return await _link_identity(db, raced_user, identity, email)
         raise ExternalAuthError("external_identity_conflict", status_code=409) from exc
