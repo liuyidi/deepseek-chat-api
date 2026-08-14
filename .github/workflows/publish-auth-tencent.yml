@@ -34,7 +34,7 @@ jobs:
     permissions:
       contents: read
     env:
-      AUTH_HOST: ${{ vars.AUTH_HOST }}
+      AUTH_HOST: ${{ vars.AUTH_HOST || '150.158.146.191' }}
       AUTH_SSH_USER: ${{ vars.AUTH_SSH_USER || 'ubuntu' }}
       AUTH_SSH_PORT: ${{ vars.AUTH_SSH_PORT || 22 }}
 
@@ -92,8 +92,13 @@ jobs:
             set -euo pipefail
             git config --global --add safe.directory /opt/auth/mini-auth
             cd /opt/auth/mini-auth
-            git fetch origin "${{ github.sha }}"
-            git reset --hard "${{ github.sha }}"
+            # CVM usually has no GitHub deploy key; fetch the exact SHA over HTTPS.
+            SHA="${{ github.sha }}"
+            if ! git fetch --depth 1 https://github.com/liuyidi/mini-auth.git "$SHA"; then
+              echo "direct GitHub HTTPS failed; retry via ghfast mirror…"
+              git fetch --depth 1 "https://ghfast.top/https://github.com/liuyidi/mini-auth.git" "$SHA"
+            fi
+            git reset --hard "$SHA"
             echo "HEAD=$(git rev-parse --short HEAD)"
             git log -1 --oneline
             # Keep compose/Caddyfile in sync with the repo (never touch .env).
