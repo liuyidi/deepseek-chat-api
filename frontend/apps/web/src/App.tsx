@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createWebAuthClient } from "./authClient";
 import { WebLoginPage } from "./login/WebLoginPage";
 import { SecurityCenterPage } from "./security-center/SecurityCenterPage";
@@ -57,8 +57,28 @@ function createDemoLoginHref(nextUrl: string): string {
 }
 
 function AuthRoute({ mode }: { mode: "login" | "register" }) {
+  const [checkingSession, setCheckingSession] = useState(true);
   const nextUrl = getNextUrl();
-  const authClient = createWebAuthClient(getAuthBaseUrl());
+  const authClient = useMemo(() => createWebAuthClient(getAuthBaseUrl()), []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void authClient.getCurrentUser().then((user) => {
+      if (cancelled) return;
+      if (user) {
+        window.location.replace(nextUrl);
+        return;
+      }
+      setCheckingSession(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [authClient, nextUrl]);
+
+  if (checkingSession) {
+    return null;
+  }
 
   return (
     <WebLoginPage

@@ -112,4 +112,32 @@ describe("createWebAuthClient", () => {
     });
     expect(document.cookie).toContain("mini_auth_access_token=access");
   });
+
+  it("reads the current authenticated user from the backend session cookie", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: "00000000-0000-0000-0000-000000000001",
+          email: "demo@mini-auth.dev",
+          nickname: "demo",
+          created_at: "2026-08-14T00:00:00Z",
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createWebAuthClient("https://auth.liuyidi.me");
+    await expect(client.getCurrentUser()).resolves.toMatchObject({
+      email: "demo@mini-auth.dev",
+      nickname: "demo",
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith("https://auth.liuyidi.me/api/v1/users/me", {
+      credentials: "include",
+    });
+  });
 });

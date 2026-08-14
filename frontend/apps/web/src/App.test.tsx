@@ -1,5 +1,5 @@
-import { render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import App, { getNextUrl, resolveAppRoute } from "./App";
 
@@ -22,6 +22,7 @@ describe("resolveAppRoute", () => {
 describe("App", () => {
   beforeEach(() => {
     window.history.replaceState({}, "", "/accounts/security/");
+    vi.restoreAllMocks();
   });
 
   it("renders the security center on its canonical route", () => {
@@ -29,6 +30,36 @@ describe("App", () => {
 
     expect(screen.getByText("正在加载安全中心…")).toBeInTheDocument();
     expect(screen.queryByText("Hey friend! Welcome back")).not.toBeInTheDocument();
+  });
+
+  it("does not show the login page when the auth session is already valid", async () => {
+    window.history.replaceState({}, "", "/login?next=%2Faccounts%2Fsecurity%2F");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            id: "00000000-0000-0000-0000-000000000001",
+            email: "demo@mini-auth.dev",
+            nickname: "demo",
+            created_at: "2026-08-14T00:00:00Z",
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          },
+        ),
+      ),
+    );
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith("http://127.0.0.1:8000/api/v1/users/me", {
+        credentials: "include",
+      });
+    });
+    expect(screen.queryByRole("heading", { name: "欢迎回来" })).not.toBeInTheDocument();
   });
 });
 

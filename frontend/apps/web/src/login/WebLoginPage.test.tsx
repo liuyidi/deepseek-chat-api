@@ -50,7 +50,7 @@ describe("WebLoginPage", () => {
     expect(screen.getByRole("button", { name: "使用 Google 继续，暂未接入" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "使用 GitHub 继续，暂未接入" })).toBeDisabled();
     expect(screen.getAllByText("暂未接入")).toHaveLength(2);
-    expect(screen.getByRole("link", { name: "Demo 登录" })).toHaveAttribute("href", "/demo-login");
+    expect(screen.getByRole("link", { name: "Demo 账号登录" })).toHaveAttribute("href", "/demo-login");
     expect(screen.getByRole("button", { name: "Switch to English" })).toBeInTheDocument();
     expect(screen.queryByText("Sign in with SSO")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Minibot")).toBeInTheDocument();
@@ -60,7 +60,7 @@ describe("WebLoginPage", () => {
     expect(screen.getByRole("heading", { name: "Hey friend! Welcome back" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Continue with Google, coming soon" })).toBeDisabled();
     expect(screen.getAllByText("Coming soon")).toHaveLength(2);
-    expect(screen.getByRole("link", { name: "Demo login" })).toHaveAttribute("href", "/demo-login");
+    expect(screen.getByRole("link", { name: "Demo account login" })).toHaveAttribute("href", "/demo-login");
     expect(screen.getByRole("button", { name: "切换到中文" })).toBeInTheDocument();
   });
 

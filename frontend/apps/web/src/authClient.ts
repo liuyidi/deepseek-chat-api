@@ -12,6 +12,11 @@ type AuthResponse = {
   detail?: string;
 };
 
+export type CurrentUser = {
+  email: string;
+  nickname: string;
+};
+
 export type EmailCodeVerifyOptions = {
   username?: string;
 };
@@ -51,6 +56,10 @@ function shouldUseDevMockFallback(): boolean {
 
 function createDevMockAuthClient() {
   return {
+    async getCurrentUser(): Promise<CurrentUser | null> {
+      return null;
+    },
+
     async startEmailLogin(email: string): Promise<EmailCodeStartResult> {
       return {
         email: normalizeEmail(email),
@@ -82,6 +91,38 @@ export function createWebAuthClient(baseUrl: string) {
   const devMockClient = createDevMockAuthClient();
 
   return {
+    async getCurrentUser(): Promise<CurrentUser | null> {
+      try {
+        const response = await fetch(joinUrl(baseUrl, "/api/v1/users/me"), {
+          credentials: "include",
+        });
+
+        if (response.status === 401 || response.status === 403) {
+          return null;
+        }
+
+        const data = (await response.json().catch(() => ({}))) as AuthResponse["user"] & AuthResponse;
+        if (!response.ok) {
+          throw new Error(data.detail || "会话读取失败");
+        }
+
+        if (!data?.email || !data?.nickname) {
+          return null;
+        }
+
+        return {
+          email: data.email,
+          nickname: data.nickname,
+        };
+      } catch (error) {
+        if (shouldFallbackToDevMock(error)) {
+          return devMockClient.getCurrentUser();
+        }
+
+        return null;
+      }
+    },
+
     async startEmailLogin(email: string): Promise<EmailCodeStartResult> {
       try {
         const response = await fetch(joinUrl(baseUrl, "/api/v1/auth/email/start"), {
