@@ -37,6 +37,15 @@ function getAuthBaseUrl(): string {
   return window.location.origin;
 }
 
+function getBotBaseUrl(): string {
+  const configured = import.meta.env.VITE_BOT_BASE_URL?.trim();
+  if (configured) {
+    return configured;
+  }
+
+  return "https://bot.liuyidi.me";
+}
+
 export function getNextUrl(): string {
   const next = new URLSearchParams(window.location.search).get("next");
   if (next) {
@@ -48,6 +57,19 @@ export function getNextUrl(): string {
   }
 
   return "/accounts/security/";
+}
+
+function getLoginRedirectTarget(): string {
+  const next = new URLSearchParams(window.location.search).get("next");
+  if (next) {
+    return next;
+  }
+
+  if (window.location.hostname === "auth.liuyidi.me") {
+    return "https://bot.liuyidi.me/";
+  }
+
+  return getNextUrl();
 }
 
 function createDemoLoginHref(nextUrl: string): string {
@@ -62,17 +84,45 @@ function createDemoLoginHref(nextUrl: string): string {
 
 function AuthRoute({ mode }: { mode: "login" | "register" }) {
   const [checkingSession, setCheckingSession] = useState(true);
-  const nextUrl = getNextUrl();
+  const nextUrl = getLoginRedirectTarget();
   const authClient = useMemo(() => createWebAuthClient(getAuthBaseUrl()), []);
 
   useEffect(() => {
     let cancelled = false;
-    void authClient.getCurrentUser().then((user) => {
+    const maybeRedirectToBot = async () => {
+      if (window.location.hostname !== "auth.liuyidi.me") {
+        return null;
+      }
+
+      try {
+        const response = await fetch(`${getBotBaseUrl()}/auth/config`, {
+          credentials: "include",
+        });
+        if (!response.ok) {
+          return null;
+        }
+
+        const data = (await response.json().catch(() => ({}))) as { authenticated?: boolean };
+        return data.authenticated ? "https://bot.liuyidi.me/" : null;
+      } catch {
+        return null;
+      }
+    };
+
+    void authClient.getCurrentUser().then(async (user) => {
       if (cancelled) return;
       if (user) {
         window.location.replace(nextUrl);
         return;
       }
+
+      const botTarget = await maybeRedirectToBot();
+      if (cancelled) return;
+      if (botTarget) {
+        window.location.replace(botTarget);
+        return;
+      }
+
       setCheckingSession(false);
     });
     return () => {

@@ -63,6 +63,40 @@ describe("App", () => {
     expect(screen.queryByRole("heading", { name: "欢迎回来" })).not.toBeInTheDocument();
   });
 
+  it("redirects auth visits to minibot when the bot session is already valid", async () => {
+    window.history.replaceState({}, "", "/login");
+    const replaceSpy = vi.fn();
+    vi.stubGlobal("location", {
+      ...window.location,
+      hostname: "auth.liuyidi.me",
+      search: "",
+      replace: replaceSpy,
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn()
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ detail: "Not authenticated" }), {
+            status: 401,
+            headers: { "Content-Type": "application/json" },
+          }),
+        )
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ authenticated: true }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
+        ),
+    );
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(replaceSpy).toHaveBeenCalledWith("https://bot.liuyidi.me/");
+    });
+    expect(screen.queryByLabelText("邮箱")).not.toBeInTheDocument();
+  });
+
   it("does not prefill the login email with the demo account", async () => {
     window.history.replaceState({}, "", "/login");
     vi.stubGlobal(
