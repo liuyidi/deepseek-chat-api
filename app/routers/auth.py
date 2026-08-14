@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_db
 from app.schemas.auth import (
     AuthResponse,
@@ -80,9 +81,38 @@ async def email_verify(body: EmailCodeVerifyRequest, db: AsyncSession = Depends(
 
 
 @router.post("/refresh", response_model=TokenResponse)
-async def refresh(body: RefreshRequest, db: AsyncSession = Depends(get_db)) -> TokenResponse:
+async def refresh(
+    request: Request,
+    response: Response,
+    body: RefreshRequest | None = None,
+    db: AsyncSession = Depends(get_db),
+) -> TokenResponse:
+    cookie_flow = body is None
+    refresh_token = body.refresh_token if body is not None else request.cookies.get("mini_auth_refresh_token", "")
+    if not refresh_token:
+        raise HTTPException(status_code=401, detail="Refresh token required")
     try:
-        return await refresh_tokens(db, body.refresh_token)
+        tokens = await refresh_tokens(db, refresh_token)
+        if cookie_flow:
+            response.set_cookie(
+                "mini_auth_access_token",
+                tokens.access_token,
+                max_age=tokens.expires_in,
+                httponly=True,
+                secure=settings.external_auth_cookie_secure,
+                samesite="lax",
+                path="/",
+            )
+            response.set_cookie(
+                "mini_auth_refresh_token",
+                tokens.refresh_token,
+                max_age=settings.jwt_refresh_expire_days * 86400,
+                httponly=True,
+                secure=settings.external_auth_cookie_secure,
+                samesite="lax",
+                path="/",
+            )
+        return tokens
     except AuthError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
 

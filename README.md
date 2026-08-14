@@ -2,7 +2,7 @@
 
 统一身份认证服务（原 deepseek-chat-api）。公网：`https://auth.liuyidi.me`。
 
-FastAPI：注册 / 登录 / JWT 刷新 / 登出。演进规划见 docs。
+FastAPI：注册 / 登录 / GitHub OAuth / JWT 刷新 / 登出。演进规划见 docs。
 
 ## 文档
 
@@ -67,6 +67,8 @@ uvicorn app.main:app --reload --port 8000
 | POST | `/api/v1/auth/login` | 登录 |
 | POST | `/api/v1/auth/refresh` | 刷新 `{ refresh_token }` |
 | POST | `/api/v1/auth/logout` | 登出 `{ refresh_token }` |
+| GET | `/api/v1/auth/github/start` | 发起 GitHub 登录（配置启用后） |
+| GET | `/api/v1/auth/github/callback` | GitHub OAuth 回调 |
 | GET | `/api/v1/me` | 当前用户信息 |
 | GET | `/login` | 登录页 |
 | GET | `/register` | 注册页 |

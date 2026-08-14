@@ -1,12 +1,26 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import App, { getNextUrl, resolveAppRoute } from "./App";
+import App, { createExternalLoginUrl, getNextUrl, resolveAppRoute } from "./App";
 
 beforeEach(() => {
   vi.unstubAllGlobals();
   window.history.replaceState({}, "", "/accounts/security/");
   vi.restoreAllMocks();
+});
+
+describe("createExternalLoginUrl", () => {
+  it("targets the backend GitHub start route and encodes next once", () => {
+    expect(
+      createExternalLoginUrl(
+        "https://auth.example/",
+        "github",
+        "https://auth.example/oauth/authorize?client_id=minibot&scope=openid profile",
+      ),
+    ).toBe(
+      "https://auth.example/api/v1/auth/github/start?next=https%3A%2F%2Fauth.example%2Foauth%2Fauthorize%3Fclient_id%3Dminibot%26scope%3Dopenid+profile",
+    );
+  });
 });
 
 describe("resolveAppRoute", () => {
@@ -77,6 +91,12 @@ describe("App", () => {
       vi.fn()
         .mockResolvedValueOnce(
           new Response(JSON.stringify({ detail: "Not authenticated" }), {
+            status: 401,
+            headers: { "Content-Type": "application/json" },
+          }),
+        )
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ detail: "Refresh token required" }), {
             status: 401,
             headers: { "Content-Type": "application/json" },
           }),

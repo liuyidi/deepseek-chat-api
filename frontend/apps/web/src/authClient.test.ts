@@ -191,6 +191,7 @@ describe("createWebAuthClient", () => {
 
     expect(fetchMock).toHaveBeenNthCalledWith(2, "https://auth.liuyidi.me/api/v1/auth/refresh", {
       method: "POST",
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
       },
@@ -200,5 +201,34 @@ describe("createWebAuthClient", () => {
       credentials: "include",
     });
     expect(document.cookie).toContain("mini_auth_access_token=new-access");
+  });
+
+  it("refreshes with an HttpOnly cookie when JavaScript cannot read the token", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ detail: "Not authenticated" }), { status: 401 }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ access_token: "new-access", refresh_token: "new-refresh", expires_in: 1800 }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ email: "person@example.com", nickname: "Octo" }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createWebAuthClient("https://auth.liuyidi.me");
+    await expect(client.getCurrentUser()).resolves.toEqual({ email: "person@example.com", nickname: "Octo" });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "https://auth.liuyidi.me/api/v1/auth/refresh", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
   });
 });

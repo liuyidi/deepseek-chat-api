@@ -119,23 +119,23 @@ export function createWebAuthClient(baseUrl: string) {
 
         if (response.status === 401 || response.status === 403) {
           const refreshToken = getCookieValue(REFRESH_COOKIE);
-          if (!refreshToken) {
-            return null;
-          }
 
           const refreshResponse = await fetch(joinUrl(baseUrl, "/api/v1/auth/refresh"), {
             method: "POST",
+            credentials: "include",
             headers: {
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({ refresh_token: refreshToken }),
+            body: JSON.stringify(refreshToken ? { refresh_token: refreshToken } : {}),
           });
           const refreshData = (await refreshResponse.json().catch(() => ({}))) as AuthResponse["tokens"] &
             AuthResponse;
           if (!refreshResponse.ok || !refreshData.access_token || !refreshData.refresh_token) {
             return null;
           }
-          setSessionCookies(refreshData.access_token, refreshData.refresh_token);
+          if (refreshToken) {
+            setSessionCookies(refreshData.access_token, refreshData.refresh_token);
+          }
 
           const retryResponse = await fetch(joinUrl(baseUrl, "/api/v1/users/me"), {
             credentials: "include",

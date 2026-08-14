@@ -46,6 +46,11 @@ function getBotBaseUrl(): string {
   return "https://bot.liuyidi.me";
 }
 
+export function createExternalLoginUrl(baseUrl: string, provider: "github", nextUrl: string): string {
+  const params = new URLSearchParams({ next: nextUrl });
+  return `${baseUrl.replace(/\/+$/, "")}/api/v1/auth/${provider}/start?${params.toString()}`;
+}
+
 export function getNextUrl(): string {
   const next = new URLSearchParams(window.location.search).get("next");
   if (next) {
@@ -141,7 +146,11 @@ function AuthRoute({ mode }: { mode: "login" | "register" }) {
       mode={mode}
       nextValue={nextUrl}
       googleLoginUrl={import.meta.env.VITE_GOOGLE_LOGIN_URL ?? ""}
-      githubLoginUrl={import.meta.env.VITE_GITHUB_LOGIN_URL ?? ""}
+      githubLoginUrl={
+        import.meta.env.VITE_GITHUB_LOGIN_ENABLED === "true"
+          ? createExternalLoginUrl(getAuthBaseUrl(), "github", nextUrl)
+          : ""
+      }
       demoLoginHref={mode === "login" ? createDemoLoginHref(nextUrl) : undefined}
       onSendCode={async (email) => {
         return authClient.startEmailLogin(email);

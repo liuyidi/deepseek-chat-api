@@ -33,6 +33,14 @@ class Settings(BaseSettings):
     email_service_secret: str = ""
     email_service_region: str = "cn-hangzhou"
     email_debug_return_code: bool = False
+    external_auth_allowed_return_origins: str = "https://auth.liuyidi.me"
+    external_auth_context_expire_seconds: int = 600
+    external_auth_cookie_secure: bool = True
+    github_enabled: bool = False
+    github_client_id: str = ""
+    github_client_secret: str = ""
+    github_redirect_uri: str = "https://auth.liuyidi.me/api/v1/auth/github/callback"
+    github_http_timeout_seconds: float = 10.0
 
     @property
     def async_database_url(self) -> str:
@@ -57,6 +65,14 @@ class Settings(BaseSettings):
         if self.cors_origins.strip() == "*":
             return ["*"]
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @property
+    def external_auth_allowed_return_origin_list(self) -> list[str]:
+        return [
+            origin.strip().rstrip("/")
+            for origin in self.external_auth_allowed_return_origins.split(",")
+            if origin.strip()
+        ]
 
 
 settings = Settings()

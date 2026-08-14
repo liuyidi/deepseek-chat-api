@@ -186,6 +186,15 @@ function ProviderButton({ provider }: { provider: AuthProvider }) {
     </>
   );
 
+  if (provider.href) {
+    return (
+      <a className="mini-login-provider" href={provider.href} aria-label={provider.label}>
+        {provider.icon}
+        <span>{provider.label}</span>
+      </a>
+    );
+  }
+
   return (
     <button className="mini-login-provider is-disabled" type="button" aria-label={provider.ariaLabel} disabled>
       {content}
@@ -379,7 +388,7 @@ export function WebLoginPage({
       {
         id: "google",
         label: copy.google,
-        ariaLabel: `${copy.google}${language === "zh" ? "，" : ", "}${copy.providerUnavailableAria}`,
+        ariaLabel: googleLoginUrl ? copy.google : `${copy.google}${language === "zh" ? "，" : ", "}${copy.providerUnavailableAria}`,
         href: googleLoginUrl,
         unavailableText: copy.providerUnavailable,
         icon: <GoogleIcon />,
@@ -387,7 +396,7 @@ export function WebLoginPage({
       {
         id: "github",
         label: copy.github,
-        ariaLabel: `${copy.github}${language === "zh" ? "，" : ", "}${copy.providerUnavailableAria}`,
+        ariaLabel: githubLoginUrl ? copy.github : `${copy.github}${language === "zh" ? "，" : ", "}${copy.providerUnavailableAria}`,
         href: githubLoginUrl,
         unavailableText: copy.providerUnavailable,
         icon: <GitHubIcon />,

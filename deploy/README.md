@@ -64,6 +64,21 @@ EMAIL_SERVICE_REGION=cn-hangzhou
 EMAIL_DEBUG_RETURN_CODE=false
 ```
 
+GitHub 登录需要先在 GitHub OAuth App 中登记回调
+`https://auth.liuyidi.me/api/v1/auth/github/callback`，然后配置：
+
+```bash
+GITHUB_ENABLED=true
+GITHUB_CLIENT_ID=<OAuth App client ID>
+GITHUB_CLIENT_SECRET=<OAuth App client secret>
+GITHUB_REDIRECT_URI=https://auth.liuyidi.me/api/v1/auth/github/callback
+EXTERNAL_AUTH_ALLOWED_RETURN_ORIGINS=https://auth.liuyidi.me,https://bot.liuyidi.me
+EXTERNAL_AUTH_COOKIE_SECURE=true
+```
+
+构建登录页时设置 `VITE_GITHUB_LOGIN_ENABLED=true`。后端未配置完整凭据前必须保持
+前后端开关为 `false`。GitHub access token 仅用于当次读取 `read:user user:email`，不会持久化。
+
 ## Files
 
 | File | Purpose |

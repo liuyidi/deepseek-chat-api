@@ -33,7 +33,7 @@
 - 协议优先：使用标准 OIDC / OAuth 2.0 接入
 - Token 标准化：使用 JWT 作为访问令牌
 - 状态分层：短期状态放 Redis，持久化状态放 PostgreSQL
-- Provider 可扩展：短信、微信都预留 provider 抽象
+- Provider 可扩展：GitHub 先落地通用外部 OAuth adapter，短信、Google、微信沿用身份抽象
 - 安全可控：PKCE、一次性 code、refresh token 轮换、限流、审计
 
 ## 3. 术语约定
@@ -399,8 +399,8 @@ Redis 负责短期态：
 
 - `id`
 - `user_id`
-- `provider`：`phone` / `wechat`
-- `provider_subject`：手机号、openid、unionid 等
+- `provider`：`phone` / `github` / `google` / `wechat`
+- `provider_subject`：手机号、GitHub numeric id、Google sub、微信 openid 等稳定标识
 - `provider_union_id`
 - `created_at`
 - `updated_at`
@@ -482,6 +482,8 @@ Redis 负责短期态：
 - `POST /api/v1/auth/phone/verify`（**资质依赖**：短信）
 - `GET /api/v1/auth/wechat/start`（**资质依赖**：微信）
 - `GET /api/v1/auth/wechat/callback`（**资质依赖**：微信）
+- `GET /api/v1/auth/github/start`
+- `GET /api/v1/auth/github/callback`
 - `POST /api/v1/auth/logout`
 - `POST /api/v1/auth/refresh`
 - `GET /api/v1/me`
