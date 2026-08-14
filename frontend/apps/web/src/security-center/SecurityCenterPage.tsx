@@ -272,10 +272,17 @@ export function SecurityCenterPage({ dataSource }: SecurityCenterPageProps) {
 
             <Panel title="账号管理">
               <div className="security-simple-list">
-                <button type="button" onClick={() => showInfo("账号申诉", "如果无法修改邮箱或重置密码，可通过账号申诉恢复访问。")}> 
+                <button
+                  type="button"
+                  onClick={() => showInfo("账号申诉", "如果无法修改邮箱或重置密码，可通过账号申诉恢复访问。")}
+                >
                   <span><strong>账号申诉</strong><small>如果你无法修改邮箱，或无法重置密码，可点击申诉</small></span><LineIcon name="chevron" />
                 </button>
-                <button type="button" className="security-danger-row" onClick={() => showInfo("账号注销", "账号注销功能将在真实身份校验与数据删除能力接入后开放。")}> 
+                <button
+                  type="button"
+                  className="security-danger-row"
+                  onClick={() => showInfo("账号注销", "账号注销功能将在真实身份校验与数据删除能力接入后开放。")}
+                >
                   <span><strong>账号注销</strong><small>永久注销你的 Mini Auth 账号，注销成功后账号将无法使用</small></span><LineIcon name="chevron" />
                 </button>
               </div>
