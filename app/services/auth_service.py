@@ -7,6 +7,7 @@ import bcrypt
 from jose import JWTError, jwt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.config import settings
 from app.models.user import AuthSession, RefreshToken, User
@@ -147,7 +148,9 @@ async def get_user_by_email(db: AsyncSession, email: str) -> User | None:
 
 async def get_user_by_id(db: AsyncSession, user_id: uuid.UUID) -> User | None:
     result = await db.execute(
-        select(User).where(User.id == user_id, User.deleted_at.is_(None))
+        select(User)
+        .options(selectinload(User.identities))
+        .where(User.id == user_id, User.deleted_at.is_(None))
     )
     return result.scalar_one_or_none()
 

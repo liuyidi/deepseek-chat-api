@@ -229,6 +229,13 @@ async def exchange_authorization_code(
 
 
 def userinfo_from_user(user: User) -> dict:
+    identities = [
+        {
+            "provider": identity.provider,
+            "display_name": identity.display_name,
+        }
+        for identity in (user.identities or [])
+    ]
     return {
         "sub": str(user.id),
         "email": user.email,
@@ -237,6 +244,7 @@ def userinfo_from_user(user: User) -> dict:
         "name": user.nickname,
         "picture": user.avatar_url,
         "phone_number": user.phone,
+        "identities": identities,
     }
 
 

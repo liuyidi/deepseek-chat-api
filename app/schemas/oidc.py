@@ -9,6 +9,11 @@ class OidcTokenRequest(BaseModel):
     code_verifier: str
 
 
+class OidcIdentity(BaseModel):
+    provider: str
+    display_name: str | None = None
+
+
 class OidcUserInfo(BaseModel):
     sub: str
     email: str | None = None
@@ -17,3 +22,4 @@ class OidcUserInfo(BaseModel):
     name: str | None = None
     picture: str | None = None
     phone_number: str | None = None
+    identities: list[OidcIdentity] = Field(default_factory=list)
