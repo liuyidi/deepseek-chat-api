@@ -8,7 +8,7 @@
 		-Server
 	}
 
-	@api path /api/* /health /docs* /openapi.json /redoc* /.well-known/* /v1/jwks /jwks.json /oauth/* /oidc/*
+	@api path /api/* /health /logout /docs* /openapi.json /redoc* /.well-known/* /v1/jwks /jwks.json /oauth/* /oidc/*
 	handle @api {
 		# API, discovery and legacy HTML routes stay on FastAPI.
 		reverse_proxy api:8000
