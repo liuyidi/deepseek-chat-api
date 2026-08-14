@@ -68,7 +68,7 @@ async def authorize(
         await validate_client_redirect_uri(db, client_id=client_id, redirect_uri=redirect_uri)
         await validate_client_scopes(db, client_id=client_id, requested_scopes=scope_items)
         if not code_challenge:
-            raise AuthError("PKCE code_challenge is required. Open /oidc/demo and start from there.", status_code=400)
+            raise AuthError("PKCE code_challenge is required.", status_code=400)
         code = create_authorization_code(
             user_id=current_user.id,
             client_id=client_id,

@@ -37,13 +37,13 @@ function getAuthBaseUrl(): string {
   return window.location.origin;
 }
 
-function getNextUrl(): string {
+export function getNextUrl(): string {
   const next = new URLSearchParams(window.location.search).get("next");
   if (next) {
     return next;
   }
 
-  return new URL("/oidc/demo", window.location.origin).toString();
+  return "/accounts/security/";
 }
 
 function createDemoLoginHref(nextUrl: string): string {
