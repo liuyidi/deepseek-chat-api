@@ -47,6 +47,7 @@ describe("WebLoginPage", () => {
     );
 
     expect(screen.getByRole("heading", { name: "欢迎回来" })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("请输入邮箱")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "使用 Google 继续，暂未接入" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "使用 GitHub 继续，暂未接入" })).toBeDisabled();
     expect(screen.getAllByText("暂未接入")).toHaveLength(2);
@@ -58,6 +59,7 @@ describe("WebLoginPage", () => {
     await user.click(screen.getByRole("button", { name: "Switch to English" }));
 
     expect(screen.getByRole("heading", { name: "Hey friend! Welcome back" })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Enter email")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Continue with Google, coming soon" })).toBeDisabled();
     expect(screen.getAllByText("Coming soon")).toHaveLength(2);
     expect(screen.getByRole("link", { name: "Demo account login" })).toHaveAttribute("href", "/demo-login");
@@ -80,6 +82,8 @@ describe("WebLoginPage", () => {
     );
 
     expect(screen.getByLabelText("用户名")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("请输入用户名")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("请输入邮箱")).toBeInTheDocument();
     expect(screen.getByText("已有账号？")).toBeInTheDocument();
 
     await user.type(screen.getByLabelText("邮箱"), "hello@mini.dev");

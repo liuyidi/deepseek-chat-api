@@ -3,6 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import App, { getNextUrl, resolveAppRoute } from "./App";
 
+beforeEach(() => {
+  vi.unstubAllGlobals();
+  window.history.replaceState({}, "", "/accounts/security/");
+  vi.restoreAllMocks();
+});
+
 describe("resolveAppRoute", () => {
   it.each([
     ["/", "login"],
@@ -20,11 +26,6 @@ describe("resolveAppRoute", () => {
 });
 
 describe("App", () => {
-  beforeEach(() => {
-    window.history.replaceState({}, "", "/accounts/security/");
-    vi.restoreAllMocks();
-  });
-
   it("renders the security center on its canonical route", () => {
     render(<App />);
 
@@ -61,6 +62,25 @@ describe("App", () => {
     });
     expect(screen.queryByRole("heading", { name: "欢迎回来" })).not.toBeInTheDocument();
   });
+
+  it("does not prefill the login email with the demo account", async () => {
+    window.history.replaceState({}, "", "/login");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ detail: "Not authenticated" }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+
+    render(<App />);
+
+    const email = await screen.findByLabelText("邮箱");
+    expect(email).toHaveValue("");
+    expect(email).toHaveAttribute("placeholder", "请输入邮箱");
+  });
 });
 
 describe("getNextUrl", () => {
@@ -68,6 +88,16 @@ describe("getNextUrl", () => {
     window.history.replaceState({}, "", "/");
 
     expect(getNextUrl()).toBe("/accounts/security/");
+  });
+
+  it("defaults production auth visits to minibot", () => {
+    vi.stubGlobal("location", {
+      ...window.location,
+      search: "",
+      hostname: "auth.liuyidi.me",
+    });
+
+    expect(getNextUrl()).toBe("https://bot.liuyidi.me/");
   });
 
   it("keeps an explicit next URL for OAuth sign-in", () => {

@@ -53,6 +53,8 @@ type LoginCopy = {
   divider: string;
   username: string;
   email: string;
+  usernamePlaceholder: string;
+  emailPlaceholder: string;
   codeSentTo: (email: string) => string;
   continue: string;
   sending: string;
@@ -89,6 +91,8 @@ const LOGIN_COPY: Record<LoginLanguage, LoginCopy> = {
     divider: "或",
     username: "用户名",
     email: "邮箱",
+    usernamePlaceholder: "请输入用户名",
+    emailPlaceholder: "请输入邮箱",
     codeSentTo: (email) => `验证码已发送至 ${email}`,
     continue: "继续",
     sending: "发送中...",
@@ -123,6 +127,8 @@ const LOGIN_COPY: Record<LoginLanguage, LoginCopy> = {
     divider: "Or",
     username: "Username",
     email: "Email",
+    usernamePlaceholder: "Enter username",
+    emailPlaceholder: "Enter email",
     codeSentTo: (email) => `Code sent to ${email}`,
     continue: "Continue",
     sending: "Sending...",
@@ -221,6 +227,7 @@ function EmailCodeForm({
             value={username}
             onChange={(event) => onUsernameChange(event.target.value)}
             autoComplete="username"
+            placeholder={copy.usernamePlaceholder}
           />
         </label>
       ) : null}
@@ -232,6 +239,7 @@ function EmailCodeForm({
           value={email}
           onChange={(event) => onEmailChange(event.target.value)}
           autoComplete="email"
+          placeholder={copy.emailPlaceholder}
         />
       </label>
 

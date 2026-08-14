@@ -43,6 +43,10 @@ export function getNextUrl(): string {
     return next;
   }
 
+  if (window.location.hostname === "auth.liuyidi.me") {
+    return "https://bot.liuyidi.me/";
+  }
+
   return "/accounts/security/";
 }
 
@@ -88,7 +92,6 @@ function AuthRoute({ mode }: { mode: "login" | "register" }) {
       nextValue={nextUrl}
       googleLoginUrl={import.meta.env.VITE_GOOGLE_LOGIN_URL ?? ""}
       githubLoginUrl={import.meta.env.VITE_GITHUB_LOGIN_URL ?? ""}
-      demoEmail="demo@mini-auth.dev"
       demoLoginHref={mode === "login" ? createDemoLoginHref(nextUrl) : undefined}
       onSendCode={async (email) => {
         return authClient.startEmailLogin(email);
