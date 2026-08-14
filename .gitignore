@@ -17,3 +17,4 @@ build/
 node_modules/
 *.pem
 .DS_Store
+.worktrees/
