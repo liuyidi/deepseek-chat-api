@@ -82,22 +82,23 @@ jobs:
 
       - name: Pull mini-auth commit on CVM
         uses: appleboy/ssh-action@v1.2.2
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           host: ${{ env.AUTH_HOST }}
           username: ${{ env.AUTH_SSH_USER }}
           key: ${{ secrets.AUTH_SSH_PRIVATE_KEY }}
           port: ${{ env.AUTH_SSH_PORT }}
           command_timeout: 5m
+          envs: GH_TOKEN
           script: |
             set -euo pipefail
             git config --global --add safe.directory /opt/auth/mini-auth
             cd /opt/auth/mini-auth
-            # CVM usually has no GitHub deploy key; fetch the exact SHA over HTTPS.
+            # Private repo: use the workflow GITHUB_TOKEN (no deploy key on CVM).
             SHA="${{ github.sha }}"
-            if ! git fetch --depth 1 https://github.com/liuyidi/mini-auth.git "$SHA"; then
-              echo "direct GitHub HTTPS failed; retry via ghfast mirror…"
-              git fetch --depth 1 "https://ghfast.top/https://github.com/liuyidi/mini-auth.git" "$SHA"
-            fi
+            export GIT_TERMINAL_PROMPT=0
+            git fetch --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "$SHA"
             git reset --hard "$SHA"
             echo "HEAD=$(git rev-parse --short HEAD)"
             git log -1 --oneline
