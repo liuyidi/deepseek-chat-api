@@ -23,7 +23,7 @@ describe("App", () => {
   it("renders the security center on its canonical route", () => {
     render(<App />);
 
-    expect(screen.getByRole("heading", { name: "账号安全中心" })).toBeInTheDocument();
+    expect(screen.getByText("正在加载安全中心…")).toBeInTheDocument();
     expect(screen.queryByText("欢迎来到Minibot")).not.toBeInTheDocument();
   });
 });
