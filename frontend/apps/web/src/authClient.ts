@@ -39,6 +39,26 @@ function setSessionCookies(accessToken: string, refreshToken: string): void {
   document.cookie = `${REFRESH_COOKIE}=${encodeURIComponent(refreshToken)}; Path=/; SameSite=Lax`;
 }
 
+function getCookieValue(name: string): string {
+  const prefix = `${name}=`;
+  const item = document.cookie
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(prefix));
+  return item ? decodeURIComponent(item.slice(prefix.length)) : "";
+}
+
+function currentUserFromData(data: AuthResponse["user"] & AuthResponse): CurrentUser | null {
+  if (!data?.email || !data?.nickname) {
+    return null;
+  }
+
+  return {
+    email: data.email,
+    nickname: data.nickname,
+  };
+}
+
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
@@ -98,7 +118,30 @@ export function createWebAuthClient(baseUrl: string) {
         });
 
         if (response.status === 401 || response.status === 403) {
-          return null;
+          const refreshToken = getCookieValue(REFRESH_COOKIE);
+          if (!refreshToken) {
+            return null;
+          }
+
+          const refreshResponse = await fetch(joinUrl(baseUrl, "/api/v1/auth/refresh"), {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ refresh_token: refreshToken }),
+          });
+          const refreshData = (await refreshResponse.json().catch(() => ({}))) as AuthResponse["tokens"] &
+            AuthResponse;
+          if (!refreshResponse.ok || !refreshData.access_token || !refreshData.refresh_token) {
+            return null;
+          }
+          setSessionCookies(refreshData.access_token, refreshData.refresh_token);
+
+          const retryResponse = await fetch(joinUrl(baseUrl, "/api/v1/users/me"), {
+            credentials: "include",
+          });
+          const retryData = (await retryResponse.json().catch(() => ({}))) as AuthResponse["user"] & AuthResponse;
+          return retryResponse.ok ? currentUserFromData(retryData) : null;
         }
 
         const data = (await response.json().catch(() => ({}))) as AuthResponse["user"] & AuthResponse;
@@ -106,14 +149,7 @@ export function createWebAuthClient(baseUrl: string) {
           throw new Error(data.detail || "会话读取失败");
         }
 
-        if (!data?.email || !data?.nickname) {
-          return null;
-        }
-
-        return {
-          email: data.email,
-          nickname: data.nickname,
-        };
+        return currentUserFromData(data);
       } catch (error) {
         if (shouldFallbackToDevMock(error)) {
           return devMockClient.getCurrentUser();

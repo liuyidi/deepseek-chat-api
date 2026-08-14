@@ -5,6 +5,8 @@ import { createWebAuthClient } from "./authClient";
 describe("createWebAuthClient", () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    document.cookie = "mini_auth_access_token=; Path=/; Max-Age=0";
+    document.cookie = "mini_auth_refresh_token=; Path=/; Max-Age=0";
   });
 
   it("falls back to the dev mock code flow when local fetch fails", async () => {
@@ -139,5 +141,64 @@ describe("createWebAuthClient", () => {
     expect(fetchMock).toHaveBeenCalledWith("https://auth.liuyidi.me/api/v1/users/me", {
       credentials: "include",
     });
+  });
+
+  it("refreshes an expired access cookie before reading the current user", async () => {
+    document.cookie = "mini_auth_refresh_token=old-refresh; Path=/; SameSite=Lax";
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ detail: "Not authenticated" }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            access_token: "new-access",
+            refresh_token: "new-refresh",
+            token_type: "bearer",
+            expires_in: 1800,
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "00000000-0000-0000-0000-000000000001",
+            email: "demo@mini-auth.dev",
+            nickname: "demo",
+            created_at: "2026-08-14T00:00:00Z",
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          },
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createWebAuthClient("https://auth.liuyidi.me");
+    await expect(client.getCurrentUser()).resolves.toMatchObject({
+      email: "demo@mini-auth.dev",
+      nickname: "demo",
+    });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "https://auth.liuyidi.me/api/v1/auth/refresh", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ refresh_token: "old-refresh" }),
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(3, "https://auth.liuyidi.me/api/v1/users/me", {
+      credentials: "include",
+    });
+    expect(document.cookie).toContain("mini_auth_access_token=new-access");
   });
 });
