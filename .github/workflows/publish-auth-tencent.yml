@@ -133,7 +133,10 @@ jobs:
             cd /opt/auth
             docker compose --env-file .env build api
             docker compose --env-file .env up -d
+            # scp with rm:true replaces frontend-dist inode; remount so Caddy sees files.
+            docker compose --env-file .env up -d --force-recreate caddy
             docker compose --env-file .env ps
+            docker exec mini-auth-caddy-1 test -f /srv/www/auth/index.html
 
       - name: Wait for /health
         uses: appleboy/ssh-action@v1.2.2
@@ -148,7 +151,7 @@ jobs:
             ok=0
             for i in $(seq 1 40); do
               if curl -fsS --max-time 3 http://127.0.0.1/health >/tmp/auth-health.json \
-                || curl -fsS --max-time 3 https://127.0.0.1/health >/tmp/auth-health.json; then
+                || curl -fsS --max-time 3 -k --resolve auth.liuyidi.me:443:127.0.0.1 https://auth.liuyidi.me/health >/tmp/auth-health.json; then
                 echo "health ok after ${i} attempt(s): $(cat /tmp/auth-health.json)"
                 ok=1
                 break
@@ -162,11 +165,19 @@ jobs:
               docker compose -f /opt/auth/docker-compose.yml --env-file /opt/auth/.env logs caddy --tail 80 || true
               exit 1
             fi
+            # SPA must be mounted (empty bind = /login 404 while /health still 200).
+            code="$(curl -sk -o /dev/null -w "%{http_code}" --max-time 5 --resolve auth.liuyidi.me:443:127.0.0.1 https://auth.liuyidi.me/login || true)"
+            if [[ "$code" != "200" ]]; then
+              echo "login page expected 200, got ${code}; caddy www:"
+              docker exec mini-auth-caddy-1 ls -la /srv/www/auth || true
+              exit 1
+            fi
 
       - name: Verify public URL
         run: |
           set -euo pipefail
-          curl -fsS -o /dev/null -w "public auth %{http_code}\n" https://auth.liuyidi.me/health || true
+          curl -fsS -o /dev/null -w "public auth health %{http_code}\n" https://auth.liuyidi.me/health || true
+          curl -fsS -o /dev/null -w "public auth login %{http_code}\n" https://auth.liuyidi.me/login || true
 
   notify-serverlessship:
     needs: publish-auth
