@@ -3,8 +3,15 @@ import { createWebAuthClient } from "./authClient";
 import { WebLoginPage } from "./login/WebLoginPage";
 import { SecurityCenterPage } from "./security-center/SecurityCenterPage";
 import { createMockSecurityCenterDataSource } from "./security-center/mockDataSource";
+import { SelectAccountPage } from "./select-account/SelectAccountPage";
 
-export type AppRoute = "login" | "register" | "demo-login" | "security" | "security-redirect";
+export type AppRoute =
+  | "login"
+  | "register"
+  | "demo-login"
+  | "security"
+  | "security-redirect"
+  | "select-account";
 
 const securityCenterDataSource = createMockSecurityCenterDataSource();
 
@@ -14,6 +21,9 @@ export function resolveAppRoute(pathname: string): AppRoute {
   }
   if (pathname === "/demo-login" || pathname === "/demo-login/") {
     return "demo-login";
+  }
+  if (pathname === "/oauth/select-account" || pathname === "/oauth/select-account/") {
+    return "select-account";
   }
   if (pathname === "/accounts" || pathname === "/accounts/") {
     return "security-redirect";
@@ -215,6 +225,10 @@ export default function App() {
 
   if (route === "demo-login") {
     return <DemoLoginRoute />;
+  }
+
+  if (route === "select-account") {
+    return <SelectAccountPage authBaseUrl={getAuthBaseUrl()} />;
   }
 
   return <AuthRoute mode="login" />;

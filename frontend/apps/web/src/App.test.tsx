@@ -30,6 +30,8 @@ describe("resolveAppRoute", () => {
     ["/demo-login/", "demo-login"],
     ["/register", "register"],
     ["/register/", "register"],
+    ["/oauth/select-account", "select-account"],
+    ["/oauth/select-account/", "select-account"],
     ["/accounts", "security-redirect"],
     ["/accounts/", "security-redirect"],
     ["/accounts/security", "security"],

@@ -1,4 +1,4 @@
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from starlette.responses import RedirectResponse
@@ -15,11 +15,18 @@ from app.services.oidc_service import (
     build_jwks,
     create_authorization_code,
     exchange_authorization_code,
+    is_custom_scheme_redirect_uri,
     normalize_scopes,
     userinfo_from_user,
     validate_client_redirect_uri,
     validate_client_scopes,
 )
+
+
+def _select_account_location(request: Request) -> str:
+    pairs = [(key, value) for key, value in request.query_params.multi_items() if key != "account_confirmed"]
+    query = urlencode(pairs)
+    return f"/oauth/select-account?{query}" if query else "/oauth/select-account"
 
 discovery_router = APIRouter(tags=["oidc"], include_in_schema=False)
 router = APIRouter(prefix="/oauth", tags=["oidc"])
@@ -50,6 +57,7 @@ async def authorize(
     code_challenge: str | None = Query(default=None),
     code_challenge_method: str = Query(default="S256"),
     nonce: str | None = Query(default=None),
+    account_confirmed: str | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
 ) -> RedirectResponse:
     try:
@@ -64,6 +72,10 @@ async def authorize(
         if current_user is None:
             next_url = str(request.url)
             return RedirectResponse(url=f"/login?next={quote(next_url, safe='')}", status_code=302)
+
+        confirmed = (account_confirmed or "").strip() == "1"
+        if is_custom_scheme_redirect_uri(redirect_uri) and not confirmed:
+            return RedirectResponse(url=_select_account_location(request), status_code=302)
 
         await validate_client_redirect_uri(db, client_id=client_id, redirect_uri=redirect_uri)
         await validate_client_scopes(db, client_id=client_id, requested_scopes=scope_items)

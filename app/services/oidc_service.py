@@ -3,6 +3,7 @@ import hashlib
 import json
 import uuid
 from datetime import UTC, datetime, timedelta
+from urllib.parse import urlparse
 
 from fastapi import HTTPException, status
 from jose import JWTError, jwt
@@ -20,6 +21,13 @@ OIDC_CODE_LIFETIME_MINUTES = 5
 
 def _utcnow() -> datetime:
     return datetime.now(UTC)
+
+
+def is_custom_scheme_redirect_uri(redirect_uri: str) -> bool:
+    """True when redirect_uri uses a non-http(s) scheme (e.g. minibot://)."""
+    parsed = urlparse((redirect_uri or "").strip())
+    scheme = (parsed.scheme or "").lower()
+    return bool(scheme) and scheme not in {"http", "https"}
 
 
 def _b64url(data: bytes) -> str:
