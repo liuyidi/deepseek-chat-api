@@ -8,6 +8,14 @@
 		-Server
 	}
 
+	# SPA interstitial before issuing a code for custom-scheme clients.
+	@select_account path /oauth/select-account /oauth/select-account/
+	handle @select_account {
+		root * /srv/www/auth
+		rewrite * /index.html
+		file_server
+	}
+
 	@api path /api/* /health /logout /docs* /openapi.json /redoc* /.well-known/* /v1/jwks /jwks.json /oauth/* /oidc/*
 	handle @api {
 		# API, discovery and legacy HTML routes stay on FastAPI.
