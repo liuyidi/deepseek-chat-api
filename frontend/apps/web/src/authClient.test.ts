@@ -138,7 +138,7 @@ describe("createWebAuthClient", () => {
       nickname: "demo",
     });
 
-    expect(fetchMock).toHaveBeenCalledWith("https://auth.liuyidi.me/api/v1/users/me", {
+    expect(fetchMock).toHaveBeenCalledWith("https://auth.liuyidi.me/api/v1/me", {
       credentials: "include",
     });
   });
@@ -197,7 +197,7 @@ describe("createWebAuthClient", () => {
       },
       body: JSON.stringify({ refresh_token: "old-refresh" }),
     });
-    expect(fetchMock).toHaveBeenNthCalledWith(3, "https://auth.liuyidi.me/api/v1/users/me", {
+    expect(fetchMock).toHaveBeenNthCalledWith(3, "https://auth.liuyidi.me/api/v1/me", {
       credentials: "include",
     });
     expect(document.cookie).toContain("mini_auth_access_token=new-access");

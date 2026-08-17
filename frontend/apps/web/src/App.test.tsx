@@ -72,7 +72,7 @@ describe("App", () => {
     render(<App />);
 
     await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith("http://127.0.0.1:8000/api/v1/users/me", {
+      expect(fetch).toHaveBeenCalledWith("http://127.0.0.1:8000/api/v1/me", {
         credentials: "include",
       });
     });

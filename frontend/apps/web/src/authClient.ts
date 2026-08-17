@@ -113,7 +113,7 @@ export function createWebAuthClient(baseUrl: string) {
   return {
     async getCurrentUser(): Promise<CurrentUser | null> {
       try {
-        const response = await fetch(joinUrl(baseUrl, "/api/v1/users/me"), {
+        const response = await fetch(joinUrl(baseUrl, "/api/v1/me"), {
           credentials: "include",
         });
 
@@ -137,7 +137,7 @@ export function createWebAuthClient(baseUrl: string) {
             setSessionCookies(refreshData.access_token, refreshData.refresh_token);
           }
 
-          const retryResponse = await fetch(joinUrl(baseUrl, "/api/v1/users/me"), {
+          const retryResponse = await fetch(joinUrl(baseUrl, "/api/v1/me"), {
             credentials: "include",
           });
           const retryData = (await retryResponse.json().catch(() => ({}))) as AuthResponse["user"] & AuthResponse;

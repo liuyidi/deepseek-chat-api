@@ -54,7 +54,9 @@ app.add_middleware(
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(github_auth_router)
 app.include_router(admin_router, prefix="/api/v1")
+# Canonical: /api/v1/me. Alias keeps older /api/v1/users/me clients working.
 app.include_router(users_router, prefix="/api/v1")
+app.include_router(users_router, prefix="/api/v1/users")
 app.include_router(web_router)
 app.include_router(discovery_router)
 app.include_router(oidc_router)
