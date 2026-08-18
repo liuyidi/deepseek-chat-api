@@ -1,0 +1,25 @@
+name: "ServerlessShip - mini-auth"
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify ServerlessShip
+        env:
+          SERVERLESSSHIP_URL: "https://serverless-ship.liuyidi.me/api/releases"
+          SERVERLESSSHIP_TOKEN: ${{ secrets.SERVERLESSSHIP_TOKEN_MINI_AUTH }}
+        run: |
+          curl --fail-with-body -X POST "$SERVERLESSSHIP_URL" \
+            -H "Authorization: Bearer $SERVERLESSSHIP_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data-raw "$(cat <<'JSON'
+{"project":"mini-auth","version":"${{ github.event.release.tag_name }}","tag":"${{ github.event.release.tag_name }}","repository":"${{ github.repository }}","releaseUrl":"${{ github.event.release.html_url }}","workflowUrl":"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}","channel":"Tencent CVM"}
+JSON
+)"
