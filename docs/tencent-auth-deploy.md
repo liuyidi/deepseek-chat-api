@@ -69,7 +69,7 @@ DNS auth.liuyidi.me ──A──► <ALIYUN_NGINX_IP>
 
 ## 境内加速约定（对齐阿里云 Demo）
 
-与 [aliyun-ecs-demo-deploy](../../mini-langfuse/.claude/skills/aliyun-ecs-demo-deploy/SKILL.md) / `mini-langfuse/deploy/demo` 相同策略：
+境内镜像策略与其它生产机相同（Docker Hub 走 DaoCloud 等）。认证发布读本仓 skill `deploying-tencent-mini-auth`；不要再用已删除的 `mini-langfuse/deploy/demo`：
 
 | 用途 | 镜像 / 源 |
 |------|-----------|
