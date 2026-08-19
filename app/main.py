@@ -14,7 +14,7 @@ from app.routers.github_auth import router as github_auth_router
 from app.routers.oidc import discovery_router, router as oidc_router
 from app.routers.web import router as web_router
 from app.routers.users import router as users_router
-from app.services.bootstrap_service import ensure_demo_oauth_client
+from app.services.bootstrap_service import ensure_demo_oauth_client, ensure_minikb_oauth_client
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +28,7 @@ async def lifespan(_: FastAPI):
         await conn.execute(text("SELECT 1"))
     async with async_session_factory() as session:
         await ensure_demo_oauth_client(session)
+        await ensure_minikb_oauth_client(session)
     logger.info("Database connection verified successfully")
     yield
 
