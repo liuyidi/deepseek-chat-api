@@ -200,7 +200,7 @@ JWT_SECRET=<长随机串>
 JWT_ACCESS_EXPIRE_MINUTES=30
 JWT_REFRESH_EXPIRE_DAYS=30
 JWT_ISSUER=https://auth.liuyidi.me
-CORS_ORIGINS=https://bot.liuyidi.me,https://auth.liuyidi.me
+CORS_ORIGINS=https://bot.liuyidi.me,https://auth.liuyidi.me,https://kb.liuyidi.me
 CADDY_ACME_EMAIL=you@example.com
 ```
 
