@@ -74,37 +74,36 @@ jobs:
         env:
           VITE_AUTH_BASE_URL: ${{ vars.VITE_AUTH_BASE_URL || 'https://auth.liuyidi.me' }}
           VITE_GITHUB_LOGIN_ENABLED: ${{ vars.VITE_GITHUB_LOGIN_ENABLED || 'true' }}
+          VITE_GOOGLE_LOGIN_ENABLED: ${{ vars.VITE_GOOGLE_LOGIN_ENABLED || 'true' }}
         run: |
           set -euo pipefail
           pnpm install --frozen-lockfile
           pnpm run build:web
           test -f apps/web/dist/index.html
 
-      - name: Pull mini-auth commit on CVM
-        uses: appleboy/ssh-action@v1.2.2
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Sync mini-auth source to CVM
+        uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ env.AUTH_HOST }}
           username: ${{ env.AUTH_SSH_USER }}
           key: ${{ secrets.AUTH_SSH_PRIVATE_KEY }}
           port: ${{ env.AUTH_SSH_PORT }}
-          command_timeout: 5m
-          envs: GH_TOKEN
+          source: "app,alembic,deploy,requirements.txt,alembic.ini"
+          target: "/opt/auth/mini-auth"
+          overwrite: true
+
+      - name: Sync deploy assets on CVM
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ env.AUTH_HOST }}
+          username: ${{ env.AUTH_SSH_USER }}
+          key: ${{ secrets.AUTH_SSH_PRIVATE_KEY }}
+          port: ${{ env.AUTH_SSH_PORT }}
+          command_timeout: 2m
           script: |
             set -euo pipefail
-            git config --global --add safe.directory /opt/auth/mini-auth
-            cd /opt/auth/mini-auth
-            # Private repo: use the workflow GITHUB_TOKEN (no deploy key on CVM).
-            SHA="${{ github.sha }}"
-            export GIT_TERMINAL_PROMPT=0
-            git fetch --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" "$SHA"
-            git reset --hard "$SHA"
-            echo "HEAD=$(git rev-parse --short HEAD)"
-            git log -1 --oneline
-            # Keep compose/Caddyfile in sync with the repo (never touch .env).
-            cp -f deploy/docker-compose.yml /opt/auth/docker-compose.yml
-            cp -f deploy/Caddyfile /opt/auth/Caddyfile
+            cp -f /opt/auth/mini-auth/deploy/docker-compose.yml /opt/auth/docker-compose.yml
+            cp -f /opt/auth/mini-auth/deploy/Caddyfile /opt/auth/Caddyfile
             mkdir -p /opt/auth/frontend-dist
 
       - name: Upload frontend dist
@@ -172,6 +171,13 @@ jobs:
               docker exec mini-auth-caddy-1 ls -la /srv/www/auth || true
               exit 1
             fi
+            for path in /privacy /terms; do
+              page_code="$(curl -sk -o /dev/null -w "%{http_code}" --max-time 5 --resolve auth.liuyidi.me:443:127.0.0.1 "https://auth.liuyidi.me${path}" || true)"
+              if [[ "$page_code" != "200" ]]; then
+                echo "legal page ${path} expected 200, got ${page_code}"
+                exit 1
+              fi
+            done
 
       - name: Verify public URL
         run: |
