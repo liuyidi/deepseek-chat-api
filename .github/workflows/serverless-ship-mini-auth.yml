@@ -14,7 +14,7 @@ jobs:
       - name: Notify ServerlessShip
         env:
           SERVERLESSSHIP_URL: "https://serverless-ship.liuyidi.me/api/releases"
-          SERVERLESSSHIP_TOKEN: ${{ secrets.SERVERLESSSHIP_TOKEN_MINI_AUTH }}
+          SERVERLESSSHIP_TOKEN: ${{ secrets.SERVERLESSSHIP_TOKEN_MINI_AUTH || secrets.SERVERLESSSHIP_TOKEN }}
           SERVERLESSSHIP_PAYLOAD: eyJwcm9qZWN0IjoibWluaS1hdXRoIiwidmVyc2lvbiI6IiR7eyBnaXRodWIuZXZlbnQucmVsZWFzZS50YWdfbmFtZSB9fSIsInRhZyI6IiR7eyBnaXRodWIuZXZlbnQucmVsZWFzZS50YWdfbmFtZSB9fSIsInJlcG9zaXRvcnkiOiIke3sgZ2l0aHViLnJlcG9zaXRvcnkgfX0iLCJyZWxlYXNlVXJsIjoiJHt7IGdpdGh1Yi5ldmVudC5yZWxlYXNlLmh0bWxfdXJsIH19Iiwid29ya2Zsb3dVcmwiOiIke3sgZ2l0aHViLnNlcnZlcl91cmwgfX0vJHt7IGdpdGh1Yi5yZXBvc2l0b3J5IH19L2FjdGlvbnMvcnVucy8ke3sgZ2l0aHViLnJ1bl9pZCB9fSIsImNoYW5uZWwiOiJUZW5jZW50IENWTSJ9
         run: |
           curl --fail-with-body -X POST "$SERVERLESSSHIP_URL" \
