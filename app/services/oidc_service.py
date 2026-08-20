@@ -9,7 +9,7 @@ from urllib.parse import urlparse
 
 from fastapi import HTTPException, status
 from jose import JWTError, jwt
-from sqlalchemy import inspect, insert, select, update
+from sqlalchemy import insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -279,26 +279,10 @@ def _generate_device_code() -> str:
     return secrets.token_urlsafe(32)
 
 
-async def _device_request_column_names(db: AsyncSession) -> set[str]:
-    def load_columns(sync_conn) -> set[str]:
-        return {column["name"] for column in inspect(sync_conn).get_columns("device_authorization_requests")}
-
-    try:
-        return await db.run_sync(load_columns)
-    except Exception:
-        return set()
-
-
-def _device_request_column(column_names: set[str], column) -> bool:
-    return column.name in column_names
-
-
-async def _load_device_request_row(db: AsyncSession, user_code: str) -> tuple[set[str], dict] | None:
-    columns = await _device_request_column_names(db)
-    if not columns:
-        return None
-    selected = [DeviceAuthorizationRequest.device_code, DeviceAuthorizationRequest.user_code]
-    for column in [
+def _device_request_select_columns() -> list:
+    return [
+        DeviceAuthorizationRequest.device_code,
+        DeviceAuthorizationRequest.user_code,
         DeviceAuthorizationRequest.client_id,
         DeviceAuthorizationRequest.scope,
         DeviceAuthorizationRequest.verification_uri,
@@ -314,16 +298,22 @@ async def _load_device_request_row(db: AsyncSession, user_code: str) -> tuple[se
         DeviceAuthorizationRequest.denied_at,
         DeviceAuthorizationRequest.consumed_at,
         DeviceAuthorizationRequest.created_at,
-    ]:
-        if _device_request_column(columns, column):
-            selected.append(column)
-    result = await db.execute(
-        select(*selected).where(DeviceAuthorizationRequest.user_code == user_code.upper().strip())
-    )
+    ]
+
+
+async def _load_device_request_row(db: AsyncSession, user_code: str) -> dict | None:
+    try:
+        result = await db.execute(
+            select(*_device_request_select_columns()).where(
+                DeviceAuthorizationRequest.user_code == user_code.upper().strip()
+            )
+        )
+    except Exception:
+        return None
     row = result.mappings().first()
     if row is None:
         return None
-    return columns, dict(row)
+    return dict(row)
 
 
 async def start_device_authorization(
@@ -341,7 +331,6 @@ async def start_device_authorization(
     now = _utcnow()
     device_code = _generate_device_code()
     user_code = _generate_user_code()
-    columns = await _device_request_column_names(db)
     payload: dict[str, object] = {
         "id": uuid.uuid4(),
         "device_code": device_code,
@@ -350,23 +339,15 @@ async def start_device_authorization(
         "scope": scope,
         "verification_uri": verification_uri,
         "expires_at": expires_at,
+        "interval": DEVICE_CODE_INTERVAL_SECONDS,
+        "status": "pending",
+        "created_at": now,
+        "updated_at": now,
+        "device_label": device_label,
+        "location": location,
+        "ip_address": ip_address,
+        "user_agent": user_agent,
     }
-    if "device_label" in columns:
-        payload["device_label"] = device_label
-    if "location" in columns:
-        payload["location"] = location
-    if "ip_address" in columns:
-        payload["ip_address"] = ip_address
-    if "user_agent" in columns:
-        payload["user_agent"] = user_agent
-    if "interval" in columns:
-        payload["interval"] = DEVICE_CODE_INTERVAL_SECONDS
-    if "status" in columns:
-        payload["status"] = "pending"
-    if "created_at" in columns:
-        payload["created_at"] = now
-    if "updated_at" in columns:
-        payload["updated_at"] = now
     await db.execute(insert(DeviceAuthorizationRequest).values(**payload))
     await db.commit()
     return DeviceStartResponse(
@@ -384,10 +365,9 @@ async def get_device_request_snapshot(
     *,
     user_code: str,
 ) -> DeviceRequestSnapshot | None:
-    loaded = await _load_device_request_row(db, user_code)
-    if loaded is None:
+    row = await _load_device_request_row(db, user_code)
+    if row is None:
         return None
-    _, row = loaded
     created_at = row.get("created_at")
     if hasattr(created_at, "isoformat"):
         created_at_value = created_at.isoformat()
@@ -414,10 +394,9 @@ async def get_device_request_snapshot(
 async def get_device_request_by_user_code(
     db: AsyncSession, user_code: str
 ) -> DeviceAuthorizationRequest | None:
-    loaded = await _load_device_request_row(db, user_code)
-    if loaded is None:
+    row = await _load_device_request_row(db, user_code)
+    if row is None:
         return None
-    _, row = loaded
     return DeviceAuthorizationRequest(**row)
 
 
@@ -428,11 +407,10 @@ async def confirm_device_authorization(
     user: User | None,
     approve: bool,
 ) -> DeviceAuthorizationRequest:
-    loaded = await _load_device_request_row(db, user_code)
-    if loaded is None:
+    row = await _load_device_request_row(db, user_code)
+    if row is None:
         raise AuthError("Invalid or expired user_code", status_code=400)
-    columns, record = loaded
-    expires_at = record.get("expires_at")
+    expires_at = row.get("expires_at")
     if hasattr(expires_at, "__le__") and expires_at <= _utcnow():
         await db.execute(
             update(DeviceAuthorizationRequest)
@@ -441,16 +419,14 @@ async def confirm_device_authorization(
         )
         await db.commit()
         raise AuthError("Expired device code", status_code=400)
-    if record.get("status") != "pending":
+    if row.get("status") != "pending":
         raise AuthError("Device code already used", status_code=400)
     if approve:
         if user is None:
             raise AuthError("Login required", status_code=401)
         values = {"status": "approved"}
-        if "approved_user_id" in columns:
-            values["approved_user_id"] = user.id
-        if "approved_at" in columns:
-            values["approved_at"] = _utcnow()
+        values["approved_user_id"] = user.id
+        values["approved_at"] = _utcnow()
         await db.execute(
             update(DeviceAuthorizationRequest)
             .where(DeviceAuthorizationRequest.user_code == user_code.upper().strip())
@@ -458,8 +434,7 @@ async def confirm_device_authorization(
         )
     else:
         values = {"status": "denied"}
-        if "denied_at" in columns:
-            values["denied_at"] = _utcnow()
+        values["denied_at"] = _utcnow()
         await db.execute(
             update(DeviceAuthorizationRequest)
             .where(DeviceAuthorizationRequest.user_code == user_code.upper().strip())
@@ -481,22 +456,17 @@ async def exchange_device_code(
     client_id: str,
     device_code: str,
 ) -> TokenResponse:
-    columns = await _device_request_column_names(db)
-    if not columns:
-        raise AuthError("Invalid device_code", status_code=400)
-    selected = [DeviceAuthorizationRequest.device_code, DeviceAuthorizationRequest.user_code]
-    for column in [
-        DeviceAuthorizationRequest.client_id,
-        DeviceAuthorizationRequest.scope,
-        DeviceAuthorizationRequest.expires_at,
-        DeviceAuthorizationRequest.status,
-        DeviceAuthorizationRequest.approved_user_id,
-        DeviceAuthorizationRequest.consumed_at,
-    ]:
-        if column.name in columns:
-            selected.append(column)
     result = await db.execute(
-        select(*selected).where(
+        select(
+            DeviceAuthorizationRequest.device_code,
+            DeviceAuthorizationRequest.user_code,
+            DeviceAuthorizationRequest.client_id,
+            DeviceAuthorizationRequest.scope,
+            DeviceAuthorizationRequest.expires_at,
+            DeviceAuthorizationRequest.status,
+            DeviceAuthorizationRequest.approved_user_id,
+            DeviceAuthorizationRequest.consumed_at,
+        ).where(
             DeviceAuthorizationRequest.device_code == device_code.strip(),
             DeviceAuthorizationRequest.client_id == client_id,
         )
