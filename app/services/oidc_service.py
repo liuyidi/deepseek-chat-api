@@ -4,11 +4,12 @@ import json
 import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 from urllib.parse import urlparse
 
 from fastapi import HTTPException, status
 from jose import JWTError, jwt
-from sqlalchemy import select
+from sqlalchemy import inspect, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -278,6 +279,53 @@ def _generate_device_code() -> str:
     return secrets.token_urlsafe(32)
 
 
+async def _device_request_column_names(db: AsyncSession) -> set[str]:
+    def load_columns(sync_conn) -> set[str]:
+        return {column["name"] for column in inspect(sync_conn).get_columns("device_authorization_requests")}
+
+    try:
+        return await db.run_sync(load_columns)
+    except Exception:
+        return set()
+
+
+def _device_request_column(column_names: set[str], column) -> bool:
+    return column.name in column_names
+
+
+async def _load_device_request_row(db: AsyncSession, user_code: str) -> tuple[set[str], dict] | None:
+    columns = await _device_request_column_names(db)
+    if not columns:
+        return None
+    selected = [DeviceAuthorizationRequest.device_code, DeviceAuthorizationRequest.user_code]
+    for column in [
+        DeviceAuthorizationRequest.client_id,
+        DeviceAuthorizationRequest.scope,
+        DeviceAuthorizationRequest.verification_uri,
+        DeviceAuthorizationRequest.device_label,
+        DeviceAuthorizationRequest.location,
+        DeviceAuthorizationRequest.ip_address,
+        DeviceAuthorizationRequest.user_agent,
+        DeviceAuthorizationRequest.expires_at,
+        DeviceAuthorizationRequest.interval,
+        DeviceAuthorizationRequest.status,
+        DeviceAuthorizationRequest.approved_user_id,
+        DeviceAuthorizationRequest.approved_at,
+        DeviceAuthorizationRequest.denied_at,
+        DeviceAuthorizationRequest.consumed_at,
+        DeviceAuthorizationRequest.created_at,
+    ]:
+        if _device_request_column(columns, column):
+            selected.append(column)
+    result = await db.execute(
+        select(*selected).where(DeviceAuthorizationRequest.user_code == user_code.upper().strip())
+    )
+    row = result.mappings().first()
+    if row is None:
+        return None
+    return columns, dict(row)
+
+
 async def start_device_authorization(
     db: AsyncSession,
     *,
@@ -292,20 +340,23 @@ async def start_device_authorization(
     expires_at = _utcnow() + timedelta(seconds=DEVICE_CODE_LIFETIME_SECONDS)
     device_code = _generate_device_code()
     user_code = _generate_user_code()
-    record = DeviceAuthorizationRequest(
-        device_code=device_code,
-        user_code=user_code,
-        client_id=client_id,
-        scope=scope,
-        verification_uri=verification_uri,
-        device_label=device_label,
-        location=location,
-        ip_address=ip_address,
-        user_agent=user_agent,
-        expires_at=expires_at,
-        interval=DEVICE_CODE_INTERVAL_SECONDS,
-        status="pending",
-    )
+    columns = await _device_request_column_names(db)
+    payload = {
+        "device_code": device_code,
+        "user_code": user_code,
+        "client_id": client_id,
+        "scope": scope,
+        "verification_uri": verification_uri,
+        "device_label": device_label,
+        "location": location,
+        "ip_address": ip_address,
+        "user_agent": user_agent,
+        "expires_at": expires_at,
+        "interval": DEVICE_CODE_INTERVAL_SECONDS,
+        "status": "pending",
+    }
+    insert_payload = {key: value for key, value in payload.items() if key in columns or key in {"device_code", "user_code", "client_id", "scope", "verification_uri", "expires_at", "interval", "status"}}
+    record = DeviceAuthorizationRequest(**insert_payload)
     db.add(record)
     await db.commit()
     return DeviceStartResponse(
@@ -323,34 +374,41 @@ async def get_device_request_snapshot(
     *,
     user_code: str,
 ) -> DeviceRequestSnapshot | None:
-    record = await get_device_request_by_user_code(db, user_code)
-    if record is None:
+    loaded = await _load_device_request_row(db, user_code)
+    if loaded is None:
         return None
+    _, row = loaded
+    created_at = row.get("created_at")
+    if hasattr(created_at, "isoformat"):
+        created_at_value = created_at.isoformat()
+    else:
+        created_at_value = str(created_at or _utcnow().isoformat())
+    approved_at = row.get("approved_at")
+    approved_at_value = approved_at.isoformat() if hasattr(approved_at, "isoformat") and approved_at else None
     return DeviceRequestSnapshot(
-        user_code=record.user_code,
-        client_id=record.client_id,
-        scope=record.scope,
-        verification_uri=record.verification_uri,
-        device_label=record.device_label or "Unknown device",
-        location=record.location,
-        created_at=(record.created_at or _utcnow()).isoformat(),
-        ip_address=record.ip_address,
-        user_agent=record.user_agent,
-        status=record.status,
-        approved_user=record.approved_user.nickname if record.approved_user else None,
-        approved_at=record.approved_at.isoformat() if record.approved_at else None,
+        user_code=row.get("user_code", user_code.upper().strip()),
+        client_id=row.get("client_id", ""),
+        scope=row.get("scope", "openid profile email"),
+        verification_uri=row.get("verification_uri", ""),
+        device_label=row.get("device_label") or "Unknown device",
+        location=row.get("location"),
+        created_at=created_at_value,
+        ip_address=row.get("ip_address"),
+        user_agent=row.get("user_agent"),
+        status=row.get("status", "pending"),
+        approved_user=None,
+        approved_at=approved_at_value,
     )
 
 
 async def get_device_request_by_user_code(
     db: AsyncSession, user_code: str
 ) -> DeviceAuthorizationRequest | None:
-    result = await db.execute(
-        select(DeviceAuthorizationRequest).where(
-            DeviceAuthorizationRequest.user_code == user_code.upper().strip()
-        )
-    )
-    return result.scalar_one_or_none()
+    loaded = await _load_device_request_row(db, user_code)
+    if loaded is None:
+        return None
+    _, row = loaded
+    return DeviceAuthorizationRequest(**row)
 
 
 async def confirm_device_authorization(
@@ -360,26 +418,45 @@ async def confirm_device_authorization(
     user: User | None,
     approve: bool,
 ) -> DeviceAuthorizationRequest:
-    record = await get_device_request_by_user_code(db, user_code)
-    if record is None:
+    loaded = await _load_device_request_row(db, user_code)
+    if loaded is None:
         raise AuthError("Invalid or expired user_code", status_code=400)
-    if record.expires_at <= _utcnow():
-        record.status = "expired"
+    columns, record = loaded
+    expires_at = record.get("expires_at")
+    if hasattr(expires_at, "__le__") and expires_at <= _utcnow():
+        await db.execute(
+            update(DeviceAuthorizationRequest)
+            .where(DeviceAuthorizationRequest.user_code == user_code.upper().strip())
+            .values(status="expired")
+        )
         await db.commit()
         raise AuthError("Expired device code", status_code=400)
-    if record.status != "pending":
+    if record.get("status") != "pending":
         raise AuthError("Device code already used", status_code=400)
     if approve:
         if user is None:
             raise AuthError("Login required", status_code=401)
-        record.status = "approved"
-        record.approved_user_id = user.id
-        record.approved_at = _utcnow()
+        values = {"status": "approved"}
+        if "approved_user_id" in columns:
+            values["approved_user_id"] = user.id
+        if "approved_at" in columns:
+            values["approved_at"] = _utcnow()
+        await db.execute(
+            update(DeviceAuthorizationRequest)
+            .where(DeviceAuthorizationRequest.user_code == user_code.upper().strip())
+            .values(**values)
+        )
     else:
-        record.status = "denied"
-        record.denied_at = _utcnow()
+        values = {"status": "denied"}
+        if "denied_at" in columns:
+            values["denied_at"] = _utcnow()
+        await db.execute(
+            update(DeviceAuthorizationRequest)
+            .where(DeviceAuthorizationRequest.user_code == user_code.upper().strip())
+            .values(**values)
+        )
     await db.commit()
-    return record
+    return SimpleNamespace(user_code=user_code.upper().strip(), status="approved" if approve else "denied")
 
 
 class DeviceTokenPendingError(Exception):
@@ -394,36 +471,58 @@ async def exchange_device_code(
     client_id: str,
     device_code: str,
 ) -> TokenResponse:
+    columns = await _device_request_column_names(db)
+    if not columns:
+        raise AuthError("Invalid device_code", status_code=400)
+    selected = [DeviceAuthorizationRequest.device_code, DeviceAuthorizationRequest.user_code]
+    for column in [
+        DeviceAuthorizationRequest.client_id,
+        DeviceAuthorizationRequest.scope,
+        DeviceAuthorizationRequest.expires_at,
+        DeviceAuthorizationRequest.status,
+        DeviceAuthorizationRequest.approved_user_id,
+        DeviceAuthorizationRequest.consumed_at,
+    ]:
+        if column.name in columns:
+            selected.append(column)
     result = await db.execute(
-        select(DeviceAuthorizationRequest).where(
+        select(*selected).where(
             DeviceAuthorizationRequest.device_code == device_code.strip(),
             DeviceAuthorizationRequest.client_id == client_id,
         )
     )
-    record = result.scalar_one_or_none()
+    record = result.mappings().first()
     if record is None:
         raise AuthError("Invalid device_code", status_code=400)
-    if record.expires_at <= _utcnow():
-        record.status = "expired"
+    if record.get("expires_at") <= _utcnow():
+        await db.execute(
+            update(DeviceAuthorizationRequest)
+            .where(DeviceAuthorizationRequest.device_code == device_code.strip())
+            .values(status="expired")
+        )
         await db.commit()
         raise DeviceTokenPendingError("expired_token")
-    if record.status == "pending":
+    if record.get("status") == "pending":
         raise DeviceTokenPendingError("authorization_pending")
-    if record.status == "denied":
+    if record.get("status") == "denied":
         raise DeviceTokenPendingError("access_denied")
-    if record.status != "approved" or record.approved_user_id is None:
+    if record.get("status") != "approved" or record.get("approved_user_id") is None:
         raise DeviceTokenPendingError("authorization_pending")
-    if record.consumed_at is not None:
+    if record.get("consumed_at") is not None:
         raise AuthError("Device code already used", status_code=400)
 
     result = await db.execute(
-        select(User).where(User.id == record.approved_user_id, User.deleted_at.is_(None))
+        select(User).where(User.id == record["approved_user_id"], User.deleted_at.is_(None))
     )
     user = result.scalar_one_or_none()
     if user is None:
         raise AuthError("User not found", status_code=401)
-    record.consumed_at = _utcnow()
+    await db.execute(
+        update(DeviceAuthorizationRequest)
+        .where(DeviceAuthorizationRequest.device_code == device_code.strip())
+        .values(consumed_at=_utcnow())
+    )
     await db.commit()
-    scope = normalize_scopes(record.scope)
+    scope = normalize_scopes(record.get("scope"))
     include_id_token = "openid" in scope
     return await issue_tokens(db, user, client_id=client_id, include_id_token=include_id_token)

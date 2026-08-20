@@ -81,7 +81,7 @@ describe("DevicePage", () => {
         .mockImplementationOnce(
           () =>
             new Promise((resolve) => {
-              setTimeout(() => resolve(confirmResponse), 10);
+              setTimeout(() => resolve(confirmResponse), 100);
             }),
         ),
     );
@@ -95,10 +95,8 @@ describe("DevicePage", () => {
 
     fireEvent.submit(screen.getByRole("button", { name: "Allow" }).closest("form")!);
 
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Allowing..." })).toBeDisabled();
-    });
-    const loadingButton = screen.getByRole("button", { name: "Allowing..." });
+    const loadingButton = await screen.findByRole("button", { name: "Allowing..." });
+    expect(loadingButton).toBeDisabled();
     expect(loadingButton.querySelector(".device-spinner")).toBeTruthy();
 
     await waitFor(() => {
