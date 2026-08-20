@@ -97,6 +97,17 @@ Google OAuth 同意屏幕可填写：
 | 服务条款 | `https://auth.liuyidi.me/terms` |
 | 应用首页 | `https://auth.liuyidi.me/` |
 
+**大陆服务器无法直连 Google 时**：部署 `deploy/google-oauth-relay/` 到 Vercel（见该目录 README），
+然后在 `/opt/auth/.env` 配置：
+
+```bash
+GOOGLE_RELAY_URL=https://<relay-host>/api/google/exchange
+GOOGLE_RELAY_SHARED_SECRET=<与 Vercel 相同>
+```
+
+设置 `GOOGLE_RELAY_URL` 后 API 走 relay 交换 token，不再直连 `oauth2.googleapis.com`。
+重启：`docker compose --env-file .env up -d api`。
+
 ## GitHub Actions 发布
 
 工作流：[`.github/workflows/publish-auth-tencent.yml`](../.github/workflows/publish-auth-tencent.yml)

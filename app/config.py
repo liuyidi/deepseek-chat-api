@@ -46,6 +46,8 @@ class Settings(BaseSettings):
     google_client_secret: str = ""
     google_redirect_uri: str = "https://auth.liuyidi.me/api/v1/auth/google/callback"
     google_http_timeout_seconds: float = 10.0
+    google_relay_url: str = ""
+    google_relay_shared_secret: str = ""
 
     @property
     def async_database_url(self) -> str:

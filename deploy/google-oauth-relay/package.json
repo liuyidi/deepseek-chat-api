@@ -1,0 +1,14 @@
+{
+  "name": "mini-auth-google-oauth-relay",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@vercel/node": "^5.1.16",
+    "typescript": "^5.9.0"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "version": 2,
+  "functions": {
+    "api/google/exchange.ts": {
+      "maxDuration": 10
+    }
+  }
+}

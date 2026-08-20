@@ -25,11 +25,17 @@ class GoogleAuthProvider:
         client_secret: str | None = None,
         redirect_uri: str | None = None,
         client: httpx.AsyncClient | None = None,
+        relay_url: str | None = None,
+        relay_shared_secret: str | None = None,
     ) -> None:
         self.client_id = client_id if client_id is not None else settings.google_client_id
         self.client_secret = client_secret if client_secret is not None else settings.google_client_secret
         self.redirect_uri = redirect_uri if redirect_uri is not None else settings.google_redirect_uri
         self.client = client
+        self.relay_url = relay_url if relay_url is not None else settings.google_relay_url
+        self.relay_shared_secret = (
+            relay_shared_secret if relay_shared_secret is not None else settings.google_relay_shared_secret
+        )
 
     def build_authorization_url(self, context: OAuthStartContext) -> str:
         query = urlencode(
@@ -47,9 +53,68 @@ class GoogleAuthProvider:
         )
         return f"https://accounts.google.com/o/oauth2/v2/auth?{query}"
 
-    async def exchange_identity(self, callback: OAuthCallbackContext) -> ProviderIdentity:
-        owns_client = self.client is None
-        client = self.client or httpx.AsyncClient(timeout=settings.google_http_timeout_seconds)
+    def _uses_relay(self) -> bool:
+        return bool(self.relay_url.strip())
+
+    def _identity_from_profile(self, profile: object) -> ProviderIdentity:
+        if not isinstance(profile, dict):
+            raise ExternalAuthError("provider_identity_invalid", status_code=502)
+
+        subject = profile.get("sub")
+        email = profile.get("email")
+        email_verified = profile.get("email_verified")
+        if not isinstance(subject, str) or not subject:
+            raise ExternalAuthError("provider_identity_invalid", status_code=502)
+        if email_verified is not True or not isinstance(email, str) or not email.strip():
+            raise ExternalAuthError("verified_email_required", status_code=422)
+
+        name = profile.get("name")
+        picture = profile.get("picture")
+        return ProviderIdentity(
+            provider=self.name,
+            subject=subject,
+            email=email.strip().lower(),
+            email_verified=True,
+            display_name=name.strip() if isinstance(name, str) and name.strip() else None,
+            avatar_url=picture if isinstance(picture, str) else None,
+        )
+
+    async def _exchange_via_relay(self, client: httpx.AsyncClient, callback: OAuthCallbackContext) -> ProviderIdentity:
+        relay_url = self.relay_url.strip()
+        shared_secret = self.relay_shared_secret.strip()
+        if not shared_secret:
+            raise ExternalAuthError("provider_exchange_failed", status_code=502)
+
+        try:
+            response = await client.post(
+                relay_url,
+                headers={
+                    "Accept": "application/json",
+                    "Authorization": f"Bearer {shared_secret}",
+                    "Content-Type": "application/json",
+                    "User-Agent": "mini-auth",
+                },
+                json={
+                    "code": callback.code,
+                    "code_verifier": callback.code_verifier,
+                },
+            )
+            payload = response.json()
+        except (httpx.HTTPError, ValueError, AttributeError) as exc:
+            logger.warning("Google relay exchange failed: %s", exc.__class__.__name__, exc_info=True)
+            raise ExternalAuthError("provider_exchange_failed", status_code=502) from exc
+
+        if response.status_code == 422 and isinstance(payload, dict):
+            error_code = payload.get("error")
+            if isinstance(error_code, str) and error_code:
+                raise ExternalAuthError(error_code, status_code=422)
+            raise ExternalAuthError("verified_email_required", status_code=422)
+        if response.status_code != 200:
+            raise ExternalAuthError("provider_exchange_failed", status_code=502)
+
+        return self._identity_from_profile(payload)
+
+    async def _exchange_direct(self, client: httpx.AsyncClient, callback: OAuthCallbackContext) -> ProviderIdentity:
         try:
             token_response = await client.post(
                 "https://oauth2.googleapis.com/token",
@@ -89,28 +154,16 @@ class GoogleAuthProvider:
         except (httpx.HTTPError, ValueError, AttributeError) as exc:
             logger.warning("Google token exchange failed: %s", exc.__class__.__name__, exc_info=True)
             raise ExternalAuthError("provider_exchange_failed", status_code=502) from exc
+
+        return self._identity_from_profile(profile)
+
+    async def exchange_identity(self, callback: OAuthCallbackContext) -> ProviderIdentity:
+        owns_client = self.client is None
+        client = self.client or httpx.AsyncClient(timeout=settings.google_http_timeout_seconds)
+        try:
+            if self._uses_relay():
+                return await self._exchange_via_relay(client, callback)
+            return await self._exchange_direct(client, callback)
         finally:
             if owns_client:
                 await client.aclose()
-
-        if not isinstance(profile, dict):
-            raise ExternalAuthError("provider_identity_invalid", status_code=502)
-
-        subject = profile.get("sub")
-        email = profile.get("email")
-        email_verified = profile.get("email_verified")
-        if not isinstance(subject, str) or not subject:
-            raise ExternalAuthError("provider_identity_invalid", status_code=502)
-        if email_verified is not True or not isinstance(email, str) or not email.strip():
-            raise ExternalAuthError("verified_email_required", status_code=422)
-
-        name = profile.get("name")
-        picture = profile.get("picture")
-        return ProviderIdentity(
-            provider=self.name,
-            subject=subject,
-            email=email.strip().lower(),
-            email_verified=True,
-            display_name=name.strip() if isinstance(name, str) and name.strip() else None,
-            avatar_url=picture if isinstance(picture, str) else None,
-        )

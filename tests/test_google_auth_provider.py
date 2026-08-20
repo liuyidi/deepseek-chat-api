@@ -96,6 +96,67 @@ class GoogleAuthProviderTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(caught.exception.code, "provider_exchange_failed")
         self.assertNotIn("secret upstream", str(caught.exception))
 
+    async def test_exchange_uses_relay_when_configured(self) -> None:
+        async def handler(request: httpx.Request) -> httpx.Response:
+            self.assertEqual(request.url.host, "relay.example")
+            self.assertEqual(request.headers.get("authorization"), "Bearer relay-secret")
+            self.assertIn(b'"code":"code-1"', request.content)
+            self.assertIn(b'"code_verifier":"verifier"', request.content)
+            return httpx.Response(
+                200,
+                json={
+                    "sub": "google-subject-456",
+                    "email": "relay@example.com",
+                    "email_verified": True,
+                    "name": "Relay User",
+                },
+            )
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            identity = await GoogleAuthProvider(
+                "client",
+                "secret",
+                "https://auth.example/callback",
+                client,
+                relay_url="https://relay.example/api/google/exchange",
+                relay_shared_secret="relay-secret",
+            ).exchange_identity(OAuthCallbackContext("code-1", "verifier"))
+
+        self.assertEqual(identity.subject, "google-subject-456")
+        self.assertEqual(identity.email, "relay@example.com")
+
+    async def test_relay_maps_verified_email_error(self) -> None:
+        async def handler(_: httpx.Request) -> httpx.Response:
+            return httpx.Response(422, json={"error": "verified_email_required"})
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            with self.assertRaises(ExternalAuthError) as caught:
+                await GoogleAuthProvider(
+                    "client",
+                    "secret",
+                    "https://auth.example/callback",
+                    client,
+                    relay_url="https://relay.example/api/google/exchange",
+                    relay_shared_secret="relay-secret",
+                ).exchange_identity(OAuthCallbackContext("code", "verifier"))
+        self.assertEqual(caught.exception.code, "verified_email_required")
+
+    async def test_relay_maps_upstream_failure(self) -> None:
+        async def handler(_: httpx.Request) -> httpx.Response:
+            return httpx.Response(502, json={"error": "provider_exchange_failed"})
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            with self.assertRaises(ExternalAuthError) as caught:
+                await GoogleAuthProvider(
+                    "client",
+                    "secret",
+                    "https://auth.example/callback",
+                    client,
+                    relay_url="https://relay.example/api/google/exchange",
+                    relay_shared_secret="relay-secret",
+                ).exchange_identity(OAuthCallbackContext("code", "verifier"))
+        self.assertEqual(caught.exception.code, "provider_exchange_failed")
+
 
 if __name__ == "__main__":
     unittest.main()
