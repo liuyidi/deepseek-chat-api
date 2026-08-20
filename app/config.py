@@ -41,6 +41,11 @@ class Settings(BaseSettings):
     github_client_secret: str = ""
     github_redirect_uri: str = "https://auth.liuyidi.me/api/v1/auth/github/callback"
     github_http_timeout_seconds: float = 10.0
+    google_enabled: bool = False
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    google_redirect_uri: str = "https://auth.liuyidi.me/api/v1/auth/google/callback"
+    google_http_timeout_seconds: float = 10.0
 
     @property
     def async_database_url(self) -> str:

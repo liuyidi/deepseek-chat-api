@@ -1,18 +1,36 @@
 :root {
-  --security-blue: #3370ff;
-  --security-blue-hover: #245bdb;
-  --security-ink: #1f2329;
-  --security-muted: #646a73;
-  --security-soft: #8f959e;
-  --security-line: #e5e6e8;
-  --security-bg: #f2f3f5;
+  --mini-color-canvas: #ffffff;
+  --mini-color-ink: #080808;
+  --mini-color-muted: #666666;
+  --mini-color-subtle: #8a8a8a;
+  --mini-color-surface: #f5f5f5;
+  --mini-color-surface-hover: #eeeeee;
+  --mini-color-border: #a8a8a8;
+  --mini-color-border-soft: #dedede;
+  --mini-color-focus: #4f46e5;
+  --mini-color-danger: #b42318;
+  --mini-color-danger-surface: #fff1f0;
+  --mini-color-warning: #b54708;
+  --mini-color-warning-surface: #fffaeb;
+  --mini-font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI",
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --mini-radius-control: 10px;
+  --mini-radius-surface: 12px;
+
+  --security-ink: var(--mini-color-ink);
+  --security-muted: var(--mini-color-muted);
+  --security-soft: var(--mini-color-subtle);
+  --security-line: var(--mini-color-border-soft);
+  --security-bg: var(--mini-color-surface);
+  --security-blue: var(--mini-color-ink);
+  --security-blue-hover: #2a2a2a;
 }
 
 body.security-body {
   min-width: 1180px;
-  background: var(--security-bg);
+  background: var(--mini-color-canvas);
   color: var(--security-ink);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-family: var(--mini-font-sans);
 }
 
 .security-body button,
@@ -26,9 +44,7 @@ body.security-body {
 
 .security-page {
   min-height: 100vh;
-  background:
-    radial-gradient(ellipse 60% 28% at 50% 4%, rgba(51, 112, 255, 0.08), transparent 75%),
-    linear-gradient(180deg, #f8fbff 0, #f2f3f5 310px, #f2f3f5 100%);
+  background: var(--mini-color-canvas);
 }
 
 .security-page--state {
@@ -47,9 +63,9 @@ body.security-body {
 .security-state-card {
   width: 420px;
   padding: 38px;
-  border-radius: 14px;
-  background: #fff;
-  box-shadow: 0 12px 36px rgba(31, 35, 41, 0.08);
+  border-radius: var(--mini-radius-surface);
+  border: 1px solid var(--mini-color-border-soft);
+  background: var(--mini-color-canvas);
   text-align: center;
 }
 
@@ -66,8 +82,8 @@ body.security-body {
 
 .security-state-card button {
   border: 0;
-  border-radius: 7px;
-  background: var(--security-blue);
+  border-radius: var(--mini-radius-control);
+  background: var(--mini-color-ink);
   padding: 10px 24px;
   color: #fff;
   cursor: pointer;
@@ -80,19 +96,18 @@ body.security-body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid rgba(31, 35, 41, 0.1);
-  background: rgba(255, 255, 255, 0.96);
+  border-bottom: 1px solid var(--mini-color-border-soft);
+  background: var(--mini-color-canvas);
   padding: 0 28px;
-  box-shadow: 0 1px 2px rgba(31, 35, 41, 0.03);
 }
 
 .security-brand {
   display: inline-flex;
   align-items: center;
   gap: 11px;
-  color: #202124;
+  color: var(--mini-color-ink);
   font-size: 20px;
-  font-weight: 650;
+  font-weight: 600;
   letter-spacing: -0.02em;
 }
 
@@ -103,7 +118,7 @@ body.security-body {
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  color: #3c8cff;
+  color: var(--mini-color-ink);
 }
 
 .security-brand-mark svg {
@@ -139,16 +154,12 @@ body.security-body {
   height: 82px;
   display: inline-grid;
   place-items: center;
-  border: 3px solid rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--mini-color-border-soft);
   border-radius: 50%;
-  background:
-    radial-gradient(circle at 35% 25%, #6fd8ff, transparent 28%),
-    radial-gradient(circle at 70% 72%, #6a5cff, transparent 35%),
-    linear-gradient(145deg, #081f4b, #18a0fb);
-  box-shadow: 0 4px 14px rgba(43, 99, 207, 0.24);
-  color: #fff;
+  background: var(--mini-color-surface);
+  color: var(--mini-color-ink);
   font-size: 23px;
-  font-weight: 750;
+  font-weight: 600;
   letter-spacing: -0.08em;
 }
 
@@ -206,11 +217,10 @@ body.security-body {
 
 .security-panel {
   overflow: hidden;
-  border: 1px solid rgba(31, 35, 41, 0.035);
-  border-radius: 12px;
-  background: #fff;
+  border: 1px solid var(--mini-color-border-soft);
+  border-radius: var(--mini-radius-surface);
+  background: var(--mini-color-canvas);
   padding: 30px 32px;
-  box-shadow: 0 1px 2px rgba(31, 35, 41, 0.02);
 }
 
 .security-panel-heading {
@@ -235,7 +245,7 @@ body.security-body {
   gap: 7px;
   border: 0;
   background: transparent;
-  color: var(--security-blue);
+  color: var(--mini-color-ink);
   font-size: 16px;
   cursor: pointer;
 }
@@ -290,7 +300,12 @@ body.security-body {
   width: 244px;
   height: 244px;
   border-radius: 50%;
-  background: conic-gradient(from 270deg, #ff8800 0deg calc(var(--security-score) * 1.8deg), #edeff2 calc(var(--security-score) * 1.8deg) 180deg, transparent 180deg 360deg);
+  background: conic-gradient(
+    from 270deg,
+    var(--mini-color-ink) 0deg calc(var(--security-score) * 1.8deg),
+    var(--mini-color-border-soft) calc(var(--security-score) * 1.8deg) 180deg,
+    transparent 180deg 360deg
+  );
   -webkit-mask: radial-gradient(circle, transparent 0 96px, #000 97px 112px, transparent 113px);
   mask: radial-gradient(circle, transparent 0 96px, #000 97px 112px, transparent 113px);
 }
@@ -309,9 +324,9 @@ body.security-body {
   position: relative;
   z-index: 1;
   border-radius: 4px;
-  background: #fff1e3;
+  background: var(--mini-color-surface);
   padding: 3px 9px;
-  color: #ff8800;
+  color: var(--mini-color-muted);
   font-size: 14px;
 }
 
@@ -329,7 +344,7 @@ body.security-body {
 
 .security-score-summary strong {
   margin-left: 6px;
-  color: #ff8800;
+  color: var(--mini-color-ink);
   font-size: 40px;
   font-weight: 600;
 }
@@ -344,12 +359,11 @@ body.security-body {
   min-width: 220px;
   height: 50px;
   border: 0;
-  border-radius: 25px;
-  background: var(--security-blue);
+  border-radius: var(--mini-radius-control);
+  background: var(--mini-color-ink);
   color: #fff !important;
   font-size: 17px !important;
   cursor: pointer;
-  box-shadow: 0 5px 12px rgba(51, 112, 255, 0.16);
 }
 
 .security-primary-button:hover {
@@ -513,19 +527,19 @@ body.security-body {
   height: 36px;
   display: grid;
   place-items: center;
-  color: var(--security-blue);
+  color: var(--mini-color-ink);
 }
 
 .security-setting-row--orange .security-setting-icon {
-  color: #ff8800;
+  color: var(--mini-color-warning);
 }
 
 .security-setting-row--violet .security-setting-icon {
-  color: #596bff;
+  color: var(--mini-color-muted);
 }
 
 .security-setting-row--teal .security-setting-icon {
-  color: #00ad8b;
+  color: var(--mini-color-muted);
 }
 
 .security-setting-icon .security-line-icon {
@@ -618,7 +632,7 @@ body.security-body {
 }
 
 .security-switch[aria-checked="true"] {
-  background: var(--security-blue);
+  background: var(--mini-color-ink);
 }
 
 .security-switch[aria-checked="true"] span {
@@ -632,7 +646,7 @@ body.security-body {
 .security-management-icon {
   display: grid !important;
   place-items: center;
-  color: var(--security-blue);
+  color: var(--mini-color-ink);
 }
 
 .security-guide-grid {
@@ -646,18 +660,18 @@ body.security-body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border: 0;
-  border-radius: 10px;
-  background: linear-gradient(100deg, #f1f7ff, #f2fcfc);
+  border: 1px solid var(--mini-color-border-soft);
+  border-radius: var(--mini-radius-control);
+  background: var(--mini-color-surface);
   padding: 0 20px;
-  color: #30343b;
+  color: var(--mini-color-ink);
   font-size: 17px;
-  font-weight: 550;
+  font-weight: 500;
   cursor: pointer;
 }
 
 .security-guide-grid > button:hover {
-  background: linear-gradient(100deg, #e7f1ff, #e8f9f8);
+  background: var(--mini-color-surface-hover);
 }
 
 .security-guide-art {
@@ -665,7 +679,7 @@ body.security-body {
   height: 54px;
   display: grid;
   place-items: center;
-  color: #4c86ff;
+  color: var(--mini-color-ink);
 }
 
 .security-guide-art .security-brand-mark,
@@ -797,7 +811,7 @@ body.security-body {
 
 .security-body button:focus-visible,
 .security-body a:focus-visible {
-  outline: 3px solid rgba(51, 112, 255, 0.3);
+  outline: 3px solid color-mix(in srgb, var(--mini-color-focus) 35%, transparent);
   outline-offset: 2px;
 }
 

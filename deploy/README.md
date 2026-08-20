@@ -72,12 +72,22 @@ GITHUB_ENABLED=true
 GITHUB_CLIENT_ID=<OAuth App client ID>
 GITHUB_CLIENT_SECRET=<OAuth App client secret>
 GITHUB_REDIRECT_URI=https://auth.liuyidi.me/api/v1/auth/github/callback
+```
+
+Google 登录需要先在 Google Cloud Console OAuth 客户端中登记回调
+`https://auth.liuyidi.me/api/v1/auth/google/callback`，然后配置：
+
+```bash
+GOOGLE_ENABLED=true
+GOOGLE_CLIENT_ID=<OAuth client ID>
+GOOGLE_CLIENT_SECRET=<OAuth client secret>
+GOOGLE_REDIRECT_URI=https://auth.liuyidi.me/api/v1/auth/google/callback
 EXTERNAL_AUTH_ALLOWED_RETURN_ORIGINS=https://auth.liuyidi.me,https://bot.liuyidi.me
 EXTERNAL_AUTH_COOKIE_SECURE=true
 ```
 
-构建登录页时设置 `VITE_GITHUB_LOGIN_ENABLED=true`。后端未配置完整凭据前必须保持
-前后端开关为 `false`。GitHub access token 仅用于当次读取 `read:user user:email`，不会持久化。
+构建登录页时设置 `VITE_GITHUB_LOGIN_ENABLED=true` 和/或 `VITE_GOOGLE_LOGIN_ENABLED=true`。后端未配置完整凭据前必须保持
+前后端开关为 `false`。GitHub / Google access token 仅用于当次读取用户资料，不会持久化。
 
 ## GitHub Actions 发布
 
@@ -95,6 +105,7 @@ EXTERNAL_AUTH_COOKIE_SECURE=true
 | Variable | `AUTH_SSH_PORT` | 可选，默认 `22` |
 | Variable | `VITE_AUTH_BASE_URL` | 可选，默认 `https://auth.liuyidi.me` |
 | Variable | `VITE_GITHUB_LOGIN_ENABLED` | 可选，默认 `true` |
+| Variable | `VITE_GOOGLE_LOGIN_ENABLED` | 可选，默认 `true` |
 | Variable | `SERVERLESSSHIP_RELEASE_URL` | 可选 |
 | Secret | `AUTH_SSH_PRIVATE_KEY` | 对应本机 `deploy/host.env` 的 PEM 内容 |
 

@@ -21,6 +21,16 @@ describe("createExternalLoginUrl", () => {
       "https://auth.example/api/v1/auth/github/start?next=https%3A%2F%2Fauth.example%2Foauth%2Fauthorize%3Fclient_id%3Dminibot%26scope%3Dopenid+profile",
     );
   });
+
+  it("targets the backend Google start route and encodes next once", () => {
+    expect(
+      createExternalLoginUrl(
+        "https://auth.example/",
+        "google",
+        "/accounts/security/",
+      ),
+    ).toBe("https://auth.example/api/v1/auth/google/start?next=%2Faccounts%2Fsecurity%2F");
+  });
 });
 
 describe("resolveAppRoute", () => {
@@ -43,6 +53,11 @@ describe("resolveAppRoute", () => {
 
 describe("App", () => {
   it("renders the security center on its canonical route", () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(() => new Promise(() => {})),
+    );
+
     render(<App />);
 
     expect(screen.getByText("正在加载安全中心…")).toBeInTheDocument();

@@ -5,6 +5,24 @@ import { describe, expect, it, vi } from "vitest";
 import { WebLoginPage } from "./WebLoginPage";
 
 describe("WebLoginPage", () => {
+  it("enables Google when a login URL is configured", () => {
+    render(
+      <WebLoginPage
+        brand="Minibot"
+        headline="Welcome"
+        googleLoginUrl="https://auth.example/api/v1/auth/google/start?next=%2Fchat"
+        onSendCode={vi.fn()}
+        onVerifyCode={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("link", { name: "使用 Google 继续" })).toHaveAttribute(
+      "href",
+      "https://auth.example/api/v1/auth/google/start?next=%2Fchat",
+    );
+    expect(screen.getByRole("button", { name: "使用 GitHub 继续，暂未接入" })).toBeDisabled();
+  });
+
   it("enables GitHub when a login URL is configured", () => {
     render(
       <WebLoginPage

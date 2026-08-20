@@ -394,3 +394,13 @@ def get_user_id_from_access_token(token: str) -> uuid.UUID:
     if payload.get("token_use") != "access":
         raise AuthError("Invalid access token", status_code=401)
     return uuid.UUID(payload["sub"])
+
+
+def get_session_id_from_access_token(token: str) -> uuid.UUID:
+    payload = decode_token(token, audience=settings.jwt_audience, issuer=settings.jwt_issuer)
+    if payload.get("token_use") != "access":
+        raise AuthError("Invalid access token", status_code=401)
+    sid = payload.get("sid")
+    if not isinstance(sid, str) or not sid:
+        raise AuthError("Invalid access token", status_code=401)
+    return uuid.UUID(sid)

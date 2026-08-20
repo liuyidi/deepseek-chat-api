@@ -65,7 +65,12 @@ export type SecurityCenterSnapshot = {
   settings: SecuritySetting[];
 };
 
-export type SecurityCenterErrorCode = "CURRENT_DEVICE" | "NOT_FOUND" | "MOCK_FAILURE";
+export type SecurityCenterErrorCode =
+  | "CURRENT_DEVICE"
+  | "NOT_FOUND"
+  | "MOCK_FAILURE"
+  | "UNAUTHORIZED"
+  | "NOT_SUPPORTED";
 
 export class SecurityCenterError extends Error {
   readonly code: SecurityCenterErrorCode;

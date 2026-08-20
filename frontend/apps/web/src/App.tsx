@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createWebAuthClient } from "./authClient";
 import { WebLoginPage } from "./login/WebLoginPage";
 import { SecurityCenterPage } from "./security-center/SecurityCenterPage";
-import { createMockSecurityCenterDataSource } from "./security-center/mockDataSource";
+import { createApiSecurityCenterDataSource } from "./security-center/apiDataSource";
 import { SelectAccountPage } from "./select-account/SelectAccountPage";
 
 export type AppRoute =
@@ -12,8 +12,6 @@ export type AppRoute =
   | "security"
   | "security-redirect"
   | "select-account";
-
-const securityCenterDataSource = createMockSecurityCenterDataSource();
 
 export function resolveAppRoute(pathname: string): AppRoute {
   if (pathname === "/register" || pathname === "/register/") {
@@ -56,7 +54,11 @@ function getBotBaseUrl(): string {
   return "https://bot.liuyidi.me";
 }
 
-export function createExternalLoginUrl(baseUrl: string, provider: "github", nextUrl: string): string {
+export function createExternalLoginUrl(
+  baseUrl: string,
+  provider: "github" | "google",
+  nextUrl: string,
+): string {
   const params = new URLSearchParams({ next: nextUrl });
   return `${baseUrl.replace(/\/+$/, "")}/api/v1/auth/${provider}/start?${params.toString()}`;
 }
@@ -155,7 +157,11 @@ function AuthRoute({ mode }: { mode: "login" | "register" }) {
       headline={mode === "register" ? "Create your Minibot account" : "Hey friend! Welcome back"}
       mode={mode}
       nextValue={nextUrl}
-      googleLoginUrl={import.meta.env.VITE_GOOGLE_LOGIN_URL ?? ""}
+      googleLoginUrl={
+        import.meta.env.VITE_GOOGLE_LOGIN_ENABLED === "true"
+          ? createExternalLoginUrl(getAuthBaseUrl(), "google", nextUrl)
+          : ""
+      }
       githubLoginUrl={
         import.meta.env.VITE_GITHUB_LOGIN_ENABLED === "true"
           ? createExternalLoginUrl(getAuthBaseUrl(), "github", nextUrl)
@@ -216,7 +222,7 @@ export default function App() {
   }
 
   if (route === "security") {
-    return <SecurityCenterPage dataSource={securityCenterDataSource} />;
+    return <SecurityCenterPage dataSource={createApiSecurityCenterDataSource(getAuthBaseUrl())} />;
   }
 
   if (route === "register") {

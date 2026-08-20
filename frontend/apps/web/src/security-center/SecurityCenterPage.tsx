@@ -11,6 +11,7 @@ import type {
   SecurityOperation,
   SecuritySetting,
 } from "./types";
+import { isSecurityUnauthorizedError } from "./apiDataSource";
 
 export type SecurityCenterPageProps = {
   dataSource: SecurityCenterDataSource;
@@ -106,7 +107,11 @@ export function SecurityCenterPage({ dataSource }: SecurityCenterPageProps) {
     setLoadError(false);
     try {
       setSnapshot(await dataSource.getSnapshot());
-    } catch {
+    } catch (error) {
+      if (isSecurityUnauthorizedError(error)) {
+        window.location.replace(`/login?next=${encodeURIComponent("/accounts/security/")}`);
+        return;
+      }
       setLoadError(true);
     }
   }, [dataSource]);
@@ -303,9 +308,11 @@ export function SecurityCenterPage({ dataSource }: SecurityCenterPageProps) {
                         <p>{setting.description}</p>
                       </div>
                       {isTwoFactor ? (
-                        <button type="button" role="switch" aria-label="两步验证" aria-checked={overview.twoFactorEnabled} disabled={pendingAction === "two-factor"} className="security-switch" onClick={() => void handleTwoFactor()}><span /></button>
+                        setting.toggle ? (
+                          <button type="button" role="switch" aria-label="两步验证" aria-checked={overview.twoFactorEnabled} disabled={pendingAction === "two-factor"} className="security-switch" onClick={() => void handleTwoFactor()}><span /></button>
+                        ) : null
                       ) : (
-                        <button ref={isFirstUnset ? firstUnsetRef : undefined} type="button" className="security-row-action" aria-label={`${setting.title}，${setting.status === "set" ? "已设置" : "未设置"}`} onClick={() => showInfo(setting.title, `${setting.description}。当前为前端演示，暂未连接后端。`)}><LineIcon name="chevron" /></button>
+                        <button ref={isFirstUnset ? firstUnsetRef : undefined} type="button" className="security-row-action" aria-label={`${setting.title}，${setting.status === "set" ? "已设置" : "未设置"}`} onClick={() => showInfo(setting.title, `${setting.description}${setting.status === "set" ? "" : "。该能力尚未开放。"}`)}><LineIcon name="chevron" /></button>
                       )}
                     </div>
                   );
