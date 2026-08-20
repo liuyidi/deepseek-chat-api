@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.models.user import AuthClient, DeviceAuthorizationRequest, User
 from app.schemas.auth import TokenResponse
+from app.schemas.oidc import DeviceStartResponse
 from app.services.auth_service import AuthError, issue_tokens, to_user_response
 from app.services.admin_service import _load_list
 
