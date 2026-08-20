@@ -138,6 +138,7 @@ export function DevicePage() {
   const [loading, setLoading] = useState(true);
   const [userCode, setUserCode] = useState(normalizeUserCode(parseUserCodeFromLocation()));
   const [request, setRequest] = useState<DeviceRequestSnapshot | null>(null);
+  const [requestLoaded, setRequestLoaded] = useState(false);
   const [status, setStatus] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -166,6 +167,7 @@ export function DevicePage() {
     async function loadRequest() {
       if (!userCode) {
         setRequest(null);
+        setRequestLoaded(true);
         return;
       }
       try {
@@ -174,12 +176,18 @@ export function DevicePage() {
         });
         const data = (await response.json().catch(() => null)) as DeviceRequestSnapshot | null;
         if (!response.ok || !data || cancelled) {
+          if (!cancelled) {
+            setRequest(null);
+            setRequestLoaded(true);
+          }
           return;
         }
         setRequest(data);
+        setRequestLoaded(true);
       } catch {
         if (!cancelled) {
           setRequest(null);
+          setRequestLoaded(true);
         }
       }
     }
@@ -321,64 +329,64 @@ export function DevicePage() {
           </div>
         )}
 
-        <div className="device-details" aria-label="Device information">
-          <div className="device-detailRow">
-            <span className="device-detailIcon" aria-hidden="true">
-              ⌘
-            </span>
-            <div className="device-detailBody">
-              <strong>{request ? formatRequestTitle(request) : "Loading device info..."}</strong>
-              {agentParts ? (
-                <>
-                  <span>{agentParts.cli}</span>
-                  {agentParts.node ? <span>{agentParts.node}</span> : null}
-                  {agentParts.platform || agentParts.arch ? (
-                    <span>
-                      {agentParts.platform}
-                      {agentParts.arch ? ` (${agentParts.arch})` : ""}
-                    </span>
-                  ) : null}
-                </>
-              ) : null}
-            </div>
-          </div>
-          <div className="device-detailRow">
-            <span className="device-detailIcon" aria-hidden="true">
-              ⌖
-            </span>
-            <div className="device-detailBody">
-              <strong>{request?.location || "Location unavailable"}</strong>
-              <span>{request?.client_id || "Unknown client"}</span>
-            </div>
-          </div>
-          <div className="device-detailRow">
-            <span className="device-detailIcon" aria-hidden="true">
-              ◷
-            </span>
-            <div className="device-detailBody">
-              <strong>{request ? formatTimestamp(request.created_at) : "Loading time..."}</strong>
-              <span>{request?.scope || "Loading scope..."}</span>
-            </div>
-          </div>
-          <div className="device-detailRow">
-            <span className="device-detailIcon" aria-hidden="true">
-              ⌬
-            </span>
-            <div className="device-detailBody">
-              <strong>{request?.ip_address || "IP unavailable"}</strong>
-              <span>{request?.verification_uri || "Verification URI unavailable"}</span>
-            </div>
-          </div>
-        </div>
-
         {!completed ? (
-          <div className="device-warning">
-            <span className="device-warningIcon" aria-hidden="true">
-              i
-            </span>
-            <p>
-              Do not click "Allow" unless you initiated this login attempt from <strong>Vercel CLI</strong>
-            </p>
+          <div className="device-details" aria-label="Device information">
+            {requestLoaded && request ? (
+              <>
+                <div className="device-detailRow">
+                  <span className="device-detailIcon" aria-hidden="true">
+                    ⌘
+                  </span>
+                  <div className="device-detailBody">
+                    <strong>{formatRequestTitle(request)}</strong>
+                    {agentParts ? (
+                      <>
+                        <span>{agentParts.cli}</span>
+                        {agentParts.node ? <span>{agentParts.node}</span> : null}
+                        {agentParts.platform || agentParts.arch ? (
+                          <span>
+                            {agentParts.platform}
+                            {agentParts.arch ? ` (${agentParts.arch})` : ""}
+                          </span>
+                        ) : null}
+                      </>
+                    ) : null}
+                  </div>
+                </div>
+                <div className="device-detailRow">
+                  <span className="device-detailIcon" aria-hidden="true">
+                    ⌖
+                  </span>
+                  <div className="device-detailBody">
+                    <strong>{request.location || "Location unavailable"}</strong>
+                    <span>{request.client_id || "Unknown client"}</span>
+                  </div>
+                </div>
+                <div className="device-detailRow">
+                  <span className="device-detailIcon" aria-hidden="true">
+                    ◷
+                  </span>
+                  <div className="device-detailBody">
+                    <strong>{formatTimestamp(request.created_at)}</strong>
+                    <span>{request.scope || "Loading scope..."}</span>
+                  </div>
+                </div>
+                <div className="device-detailRow">
+                  <span className="device-detailIcon" aria-hidden="true">
+                    ⌬
+                  </span>
+                  <div className="device-detailBody">
+                    <strong>{request.ip_address || "IP unavailable"}</strong>
+                    <span>{request.verification_uri || "Verification URI unavailable"}</span>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="device-emptyState" role="status">
+                <strong>Waiting for device details</strong>
+                <span>The page is ready, but this device request has not been loaded yet.</span>
+              </div>
+            )}
           </div>
         ) : null}
 

@@ -103,5 +103,6 @@ describe("DevicePage", () => {
       expect(screen.getByRole("heading", { name: "Approval complete" })).toBeInTheDocument();
     });
     expect(screen.getByText("demo")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Device information")).not.toBeInTheDocument();
   });
 });
