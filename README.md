@@ -1,24 +1,71 @@
 # mini-auth
 
-统一身份认证服务（原 deepseek-chat-api）。公网：`https://auth.liuyidi.me`。
+mini-auth is the shared identity and authentication service for the Mini product family.
+It started as `deepseek-chat-api` and is being evolved into a reusable identity center for web, desktop, mobile, and CLI clients.
 
-FastAPI：注册 / 登录 / GitHub OAuth / JWT 刷新 / 登出。演进规划见 docs。
+Public site: `https://auth.liuyidi.me`
 
-## 文档
+## What It Does Today
 
-- [auth.liuyidi.me 第一版设计](docs/auth-platform-design.md)
-- [腾讯云部署](docs/tencent-auth-deploy.md)
+mini-auth already provides the core authentication building blocks:
 
-## 技术栈
+- Email and password registration
+- Email and password sign-in
+- JWT access token and refresh token issuance
+- Refresh-token rotation and session tracking
+- Sign-out and session revocation
+- GitHub OAuth sign-in
+- Google OAuth sign-in
+- OIDC / OAuth2 authorization support
+- OIDC discovery and JWKS endpoints
+- User profile lookup through `/api/v1/me`
+- Admin APIs for registering and listing OIDC clients
+- Local OIDC demo flow for end-to-end verification
+- Device authorization flow for browser-assisted CLI login
 
-- FastAPI + SQLAlchemy 2.0 (async) + PostgreSQL
-- JWT（access + refresh）
-- Alembic 迁移
-- 生产：腾讯云 CVM + Docker Compose + Caddy
+## Where It Is Going
 
-## 本地开发
+The project is being shaped into a true identity provider rather than a single-purpose backend.
 
-### 1. 启动 PostgreSQL
+Planned direction:
+
+- Standardize all clients on OIDC Authorization Code + PKCE
+- Keep JWT as the internal access token format
+- Add more external identity providers through a shared account-linking layer
+- Support email verification codes as a lighter login path
+- Introduce passkey and MFA support
+- Add SMS login and WeChat login once the required operational and compliance pieces are ready
+- Expand into a unified login surface for Mini products across platforms
+
+## Documentation
+
+- [Platform design v1](docs/auth-platform-design.md)
+- [Tencent Cloud deployment](docs/tencent-auth-deploy.md)
+- [中文 README](README.zh.md)
+
+## Architecture Summary
+
+The current implementation is centered on four pieces:
+
+1. Authentication APIs for registration, login, refresh, and logout
+2. External identity adapters for GitHub and Google
+3. OIDC services for discovery, client registration, authorization, and token exchange
+4. Session and token persistence backed by PostgreSQL
+
+Short-lived state such as verification and authorization flows is intended to stay isolated from long-term account data.
+
+## Tech Stack
+
+- FastAPI
+- SQLAlchemy 2.0 async
+- PostgreSQL
+- JWT access and refresh tokens
+- Alembic migrations
+- Docker-based production deployment
+
+## Local Development
+
+### 1. Start PostgreSQL
 
 ```bash
 docker run --name mini-auth-pg \
@@ -27,7 +74,7 @@ docker run --name mini-auth-pg \
   -p 5432:5432 -d postgres:16
 ```
 
-### 2. 安装依赖
+### 2. Install Dependencies
 
 ```bash
 python3 -m venv .venv
@@ -37,52 +84,94 @@ cp .env.example .env
 # DATABASE_URL=postgresql://postgres:postgres@localhost:5432/mini_auth
 ```
 
-### 3. 迁移 & 启动
+### 3. Run Migrations and Start the App
 
 ```bash
 alembic upgrade head
 uvicorn app.main:app --reload --port 8000
 ```
 
-文档：http://127.0.0.1:8000/docs
+Open the docs at:
 
-启动后会自动补一个本地 demo OIDC client：
+```text
+http://127.0.0.1:8000/docs
+```
+
+## Demo Flows
+
+On startup, the app seeds a local demo OIDC client:
 
 - `client_id`: `minibot`
 - `redirect_uri`: `http://127.0.0.1:8000/oidc/demo/callback`
 
-可直接走这条链路验证完整登录和鉴权：
+Use it to verify the basic OIDC round trip:
 
-1. 打开 `http://127.0.0.1:8000/oidc/demo`
-2. 如果没有账号，先点登录页里的“去注册”
-3. 注册或登录后回到 OIDC demo
-4. 点击 `Start OIDC Demo`
-5. 在 callback 页查看 `authorize -> token -> userinfo` 结果
+1. Open `http://127.0.0.1:8000/oidc/demo`
+2. Sign in or create an account first if needed
+3. Click `Start OIDC Demo`
+4. Complete the flow and inspect `authorize -> token -> userinfo`
 
-## API（当前）
+For CLI-oriented device login, use the device authorization page exposed by the web app.
 
-| 方法 | 路径 | 说明 |
+## API Surface
+
+### Authentication
+
+| Method | Path | Description |
 |------|------|------|
-| POST | `/api/v1/auth/register` | 注册 `{ email, password, nickname? }` |
-| POST | `/api/v1/auth/login` | 登录 |
-| POST | `/api/v1/auth/refresh` | 刷新 `{ refresh_token }` |
-| POST | `/api/v1/auth/logout` | 登出 `{ refresh_token }` |
-| GET | `/api/v1/auth/github/start` | 发起 GitHub 登录（配置启用后） |
-| GET | `/api/v1/auth/github/callback` | GitHub OAuth 回调 |
-| GET | `/api/v1/me` | 当前用户信息 |
-| GET | `/login` | 登录页 |
-| GET | `/register` | 注册页 |
-| GET | `/oidc/demo` | 本地 OIDC demo 入口 |
-| POST | `/api/v1/admin/clients` | 注册 OIDC 客户端 |
-| GET | `/api/v1/admin/clients` | 查看 OIDC 客户端 |
-| GET | `/health` | 健康检查 |
+| POST | `/api/v1/auth/register` | Register `{ email, password, nickname? }` |
+| POST | `/api/v1/auth/login` | Sign in |
+| POST | `/api/v1/auth/refresh` | Refresh `{ refresh_token }` |
+| POST | `/api/v1/auth/logout` | Sign out `{ refresh_token }` |
+| POST | `/api/v1/auth/email/start` | Send an email verification code |
+| POST | `/api/v1/auth/email/verify` | Verify the email code and sign in / register |
+| POST | `/api/v1/auth/demo-login` | Local demo login |
 
-## 生产部署
+### External Identity
 
-见 [`docs/tencent-auth-deploy.md`](docs/tencent-auth-deploy.md) 与 [`deploy/`](deploy/)。
+| Method | Path | Description |
+|------|------|------|
+| GET | `/api/v1/auth/github/start` | Start GitHub login |
+| GET | `/api/v1/auth/github/callback` | GitHub OAuth callback |
+| GET | `/api/v1/auth/google/start` | Start Google login |
+| GET | `/api/v1/auth/google/callback` | Google OAuth callback |
 
-CI：[`Publish Auth (Tencent CVM)`](.github/workflows/publish-auth-tencent.yml)（`main` 相关路径自动部署，或 Actions 手动跑；成功后经 ServerlessShip 发飞书）。配置项见 [`deploy/README.md`](deploy/README.md#github-actions-发布)。
+### OIDC / OAuth
 
-## 环境变量
+| Method | Path | Description |
+|------|------|------|
+| GET | `/oauth/.well-known/openid-configuration` | OIDC discovery |
+| GET | `/oauth/jwks.json` | JWKS endpoint |
+| GET | `/oauth/authorize` | OIDC authorization entry |
+| POST | `/oauth/token` | OIDC token exchange |
+| POST | `/oauth/device/start` | Start device login |
+| GET | `/oauth/device/request` | Fetch device login status |
+| POST | `/oauth/device/confirm` | Confirm device login |
+| GET | `/oauth/userinfo` | OIDC userinfo |
+| GET | `/oauth/device` | Device login page |
 
-见 [`.env.example`](.env.example) 与 [`deploy/.env.example`](deploy/.env.example)。
+### OIDC / User
+
+| Method | Path | Description |
+|------|------|------|
+| GET | `/api/v1/me` | Current user info |
+| GET | `/oidc/demo` | Local OIDC demo entry |
+
+### Admin and Health
+
+| Method | Path | Description |
+|------|------|------|
+| POST | `/api/v1/admin/clients` | Register an OIDC client |
+| GET | `/api/v1/admin/clients` | List OIDC clients |
+| GET | `/health` | Health check |
+
+## Production Deployment
+
+See [`docs/tencent-auth-deploy.md`](docs/tencent-auth-deploy.md) and [`deploy/`](deploy/).
+
+CI: [`Publish Auth (Tencent CVM)`](.github/workflows/publish-auth-tencent.yml)
+auto-deploys on matching `main` paths and can also be run manually from GitHub Actions.
+
+## Environment Variables
+
+See [`.env.example`](.env.example) and [`deploy/.env.example`](deploy/.env.example).
