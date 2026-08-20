@@ -19,7 +19,7 @@ describe("buildDeviceVerificationUrl", () => {
 });
 
 describe("DevicePage", () => {
-  it("renders a Vercel-like device approval page", async () => {
+  it("renders the original compact approval layout with device details", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(
@@ -49,8 +49,10 @@ describe("DevicePage", () => {
     });
     expect(screen.getByLabelText("Device code")).toHaveValue("LCKR-JRGX");
     expect(screen.getByRole("button", { name: "Allow" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Device code preview")).toBeInTheDocument();
-    expect(screen.getByText("MINI-AUTH")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Device code preview")).not.toBeInTheDocument();
+    expect(screen.getByText("mini-auth")).toBeInTheDocument();
+    expect(screen.getByText("demo@mini-auth.dev")).toBeInTheDocument();
+    expect(screen.getByLabelText("Device information")).toBeInTheDocument();
     expect(screen.getByText("DdeMacBook-Pro.local @ vercel 59.1.4 node-v22.23.1 darwin (arm64)")).toBeInTheDocument();
   });
 
@@ -100,9 +102,9 @@ describe("DevicePage", () => {
     expect(loadingButton.querySelector(".device-spinner")).toBeTruthy();
 
     await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "Approval complete" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "You can return to your device now" })).toBeInTheDocument();
     });
-    expect(screen.getByText("demo")).toBeInTheDocument();
+    expect(screen.getByText("Approved for demo")).toBeInTheDocument();
     expect(screen.queryByLabelText("Device information")).not.toBeInTheDocument();
   });
 });
