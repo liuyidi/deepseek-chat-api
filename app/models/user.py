@@ -112,6 +112,32 @@ class AuthClient(Base):
     )
 
 
+class DeviceAuthorizationRequest(Base):
+    __tablename__ = "device_authorization_requests"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    device_code: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    user_code: Mapped[str] = mapped_column(String(32), unique=True, nullable=False, index=True)
+    client_id: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
+    scope: Mapped[str] = mapped_column(Text, nullable=False, default="openid profile email")
+    verification_uri: Mapped[str] = mapped_column(String(500), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    interval: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
+    approved_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    denied_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    approved_user: Mapped[User | None] = relationship(lazy="joined")
+
+
 class AuditLog(Base):
     __tablename__ = "audit_logs"
 

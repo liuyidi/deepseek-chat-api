@@ -9,8 +9,8 @@
 	}
 
 	# SPA interstitial before issuing a code for custom-scheme clients.
-	@select_account path /oauth/select-account /oauth/select-account/
-	handle @select_account {
+	@spa_routes path /oauth/select-account /oauth/select-account/ /oauth/device /oauth/device/
+	handle @spa_routes {
 		root * /srv/www/auth
 		rewrite * /index.html
 		file_server

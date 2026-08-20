@@ -2,11 +2,32 @@ from pydantic import BaseModel, Field
 
 
 class OidcTokenRequest(BaseModel):
-    grant_type: str = Field(pattern="^authorization_code$")
-    code: str
-    redirect_uri: str
+    grant_type: str = Field(pattern="^(authorization_code|refresh_token|device_code)$")
+    code: str | None = None
+    redirect_uri: str | None = None
     client_id: str
-    code_verifier: str
+    code_verifier: str | None = None
+    refresh_token: str | None = None
+    device_code: str | None = None
+
+
+class DeviceStartRequest(BaseModel):
+    client_id: str
+    scope: str = "openid profile email"
+
+
+class DeviceStartResponse(BaseModel):
+    device_code: str
+    user_code: str
+    verification_uri: str
+    verification_uri_complete: str
+    expires_in: int
+    interval: int
+
+
+class DeviceConfirmRequest(BaseModel):
+    user_code: str
+    approve: bool = True
 
 
 class OidcIdentity(BaseModel):

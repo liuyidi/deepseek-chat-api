@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { createWebAuthClient } from "./authClient";
+import { DevicePage } from "./device/DevicePage";
 import { WebLoginPage } from "./login/WebLoginPage";
 import { SecurityCenterPage } from "./security-center/SecurityCenterPage";
 import { createApiSecurityCenterDataSource } from "./security-center/apiDataSource";
@@ -13,6 +14,7 @@ export type AppRoute =
   | "security"
   | "security-redirect"
   | "select-account"
+  | "device"
   | "privacy"
   | "terms";
 
@@ -25,6 +27,9 @@ export function resolveAppRoute(pathname: string): AppRoute {
   }
   if (pathname === "/oauth/select-account" || pathname === "/oauth/select-account/") {
     return "select-account";
+  }
+  if (pathname === "/oauth/device" || pathname === "/oauth/device/") {
+    return "device";
   }
   if (pathname === "/accounts" || pathname === "/accounts/") {
     return "security-redirect";
@@ -244,6 +249,10 @@ export default function App() {
 
   if (route === "select-account") {
     return <SelectAccountPage authBaseUrl={getAuthBaseUrl()} />;
+  }
+
+  if (route === "device") {
+    return <DevicePage />;
   }
 
   if (route === "privacy") {

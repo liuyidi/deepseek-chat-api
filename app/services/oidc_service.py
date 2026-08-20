@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import json
+import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
 from urllib.parse import urlparse
@@ -11,12 +12,14 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.models.user import AuthClient, User
+from app.models.user import AuthClient, DeviceAuthorizationRequest, User
 from app.schemas.auth import TokenResponse
 from app.services.auth_service import AuthError, issue_tokens, to_user_response
 from app.services.admin_service import _load_list
 
 OIDC_CODE_LIFETIME_MINUTES = 5
+DEVICE_CODE_LIFETIME_SECONDS = 900
+DEVICE_CODE_INTERVAL_SECONDS = 5
 
 
 def _utcnow() -> datetime:
@@ -60,7 +63,7 @@ def build_discovery_document() -> dict:
         "subject_types_supported": ["public"],
         "id_token_signing_alg_values_supported": ["HS256"],
         "scopes_supported": ["openid", "profile", "email"],
-        "grant_types_supported": ["authorization_code", "refresh_token"],
+        "grant_types_supported": ["authorization_code", "refresh_token", "device_code"],
         "token_endpoint_auth_methods_supported": ["none"],
     }
 
@@ -262,3 +265,132 @@ def code_challenge_s256(code_verifier: str) -> str:
 
 def raise_http_error(message: str, status_code: int) -> HTTPException:
     return HTTPException(status_code=status_code, detail=message)
+
+
+def _generate_user_code() -> str:
+    alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+    raw = "".join(secrets.choice(alphabet) for _ in range(8))
+    return f"{raw[:4]}-{raw[4:]}"
+
+
+def _generate_device_code() -> str:
+    return secrets.token_urlsafe(32)
+
+
+async def start_device_authorization(
+    db: AsyncSession,
+    *,
+    client_id: str,
+    scope: str,
+    verification_uri: str,
+) -> DeviceStartResponse:
+    expires_at = _utcnow() + timedelta(seconds=DEVICE_CODE_LIFETIME_SECONDS)
+    device_code = _generate_device_code()
+    user_code = _generate_user_code()
+    record = DeviceAuthorizationRequest(
+        device_code=device_code,
+        user_code=user_code,
+        client_id=client_id,
+        scope=scope,
+        verification_uri=verification_uri,
+        expires_at=expires_at,
+        interval=DEVICE_CODE_INTERVAL_SECONDS,
+        status="pending",
+    )
+    db.add(record)
+    await db.commit()
+    return DeviceStartResponse(
+        device_code=device_code,
+        user_code=user_code,
+        verification_uri=verification_uri,
+        verification_uri_complete=f"{verification_uri}?user_code={user_code}",
+        expires_in=DEVICE_CODE_LIFETIME_SECONDS,
+        interval=DEVICE_CODE_INTERVAL_SECONDS,
+    )
+
+
+async def get_device_request_by_user_code(
+    db: AsyncSession, user_code: str
+) -> DeviceAuthorizationRequest | None:
+    result = await db.execute(
+        select(DeviceAuthorizationRequest).where(
+            DeviceAuthorizationRequest.user_code == user_code.upper().strip()
+        )
+    )
+    return result.scalar_one_or_none()
+
+
+async def confirm_device_authorization(
+    db: AsyncSession,
+    *,
+    user_code: str,
+    user: User | None,
+    approve: bool,
+) -> DeviceAuthorizationRequest:
+    record = await get_device_request_by_user_code(db, user_code)
+    if record is None:
+        raise AuthError("Invalid or expired user_code", status_code=400)
+    if record.expires_at <= _utcnow():
+        record.status = "expired"
+        await db.commit()
+        raise AuthError("Expired device code", status_code=400)
+    if record.status != "pending":
+        raise AuthError("Device code already used", status_code=400)
+    if approve:
+        if user is None:
+            raise AuthError("Login required", status_code=401)
+        record.status = "approved"
+        record.approved_user_id = user.id
+        record.approved_at = _utcnow()
+    else:
+        record.status = "denied"
+        record.denied_at = _utcnow()
+    await db.commit()
+    return record
+
+
+class DeviceTokenPendingError(Exception):
+    def __init__(self, code: str) -> None:
+        self.code = code
+        super().__init__(code)
+
+
+async def exchange_device_code(
+    db: AsyncSession,
+    *,
+    client_id: str,
+    device_code: str,
+) -> TokenResponse:
+    result = await db.execute(
+        select(DeviceAuthorizationRequest).where(
+            DeviceAuthorizationRequest.device_code == device_code.strip(),
+            DeviceAuthorizationRequest.client_id == client_id,
+        )
+    )
+    record = result.scalar_one_or_none()
+    if record is None:
+        raise AuthError("Invalid device_code", status_code=400)
+    if record.expires_at <= _utcnow():
+        record.status = "expired"
+        await db.commit()
+        raise DeviceTokenPendingError("expired_token")
+    if record.status == "pending":
+        raise DeviceTokenPendingError("authorization_pending")
+    if record.status == "denied":
+        raise DeviceTokenPendingError("access_denied")
+    if record.status != "approved" or record.approved_user_id is None:
+        raise DeviceTokenPendingError("authorization_pending")
+    if record.consumed_at is not None:
+        raise AuthError("Device code already used", status_code=400)
+
+    result = await db.execute(
+        select(User).where(User.id == record.approved_user_id, User.deleted_at.is_(None))
+    )
+    user = result.scalar_one_or_none()
+    if user is None:
+        raise AuthError("User not found", status_code=401)
+    record.consumed_at = _utcnow()
+    await db.commit()
+    scope = normalize_scopes(record.scope)
+    include_id_token = "openid" in scope
+    return await issue_tokens(db, user, client_id=client_id, include_id_token=include_id_token)

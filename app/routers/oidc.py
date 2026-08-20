@@ -1,22 +1,26 @@
 from urllib.parse import quote, urlencode
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from starlette.responses import RedirectResponse
+from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.deps import get_current_user, resolve_current_user
 from app.models.user import User
 from app.schemas.auth import TokenResponse
-from app.schemas.oidc import OidcTokenRequest, OidcUserInfo
+from app.schemas.oidc import DeviceConfirmRequest, DeviceStartRequest, OidcTokenRequest, OidcUserInfo
 from app.services.auth_service import AuthError
 from app.services.oidc_service import (
+    DeviceTokenPendingError,
     build_discovery_document,
     build_jwks,
+    confirm_device_authorization,
     create_authorization_code,
+    exchange_device_code,
     exchange_authorization_code,
     is_custom_scheme_redirect_uri,
     normalize_scopes,
+    start_device_authorization,
     userinfo_from_user,
     validate_client_redirect_uri,
     validate_client_scopes,
@@ -102,13 +106,59 @@ async def authorize(
 @router.post("/token", response_model=TokenResponse)
 async def token(body: OidcTokenRequest, db: AsyncSession = Depends(get_db)) -> TokenResponse:
     try:
+        if body.grant_type == "device_code":
+            if not body.device_code:
+                raise AuthError("device_code is required", status_code=400)
+            return await exchange_device_code(
+                db,
+                client_id=body.client_id,
+                device_code=body.device_code,
+            )
         return await exchange_authorization_code(
             db,
             code=body.code,
             client_id=body.client_id,
-            redirect_uri=body.redirect_uri,
-            code_verifier=body.code_verifier,
+            redirect_uri=body.redirect_uri or "",
+            code_verifier=body.code_verifier or "",
         )
+    except AuthError as exc:
+        raise _raise_http_error(exc) from exc
+    except DeviceTokenPendingError as exc:
+        raise HTTPException(status_code=400, detail=exc.code) from exc
+
+
+@router.post("/device/start")
+async def device_start(
+    body: DeviceStartRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    verification_uri = str(request.base_url).rstrip("/") + "/oauth/device"
+    return await start_device_authorization(
+        db,
+        client_id=body.client_id,
+        scope=body.scope,
+        verification_uri=verification_uri,
+    )
+
+
+@router.post("/device/confirm")
+async def device_confirm(
+    body: DeviceConfirmRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User | None = Depends(get_current_user),
+):
+    try:
+        record = await confirm_device_authorization(
+            db,
+            user_code=body.user_code,
+            user=current_user,
+            approve=body.approve,
+        )
+        return {
+            "status": record.status,
+            "user_code": record.user_code,
+        }
     except AuthError as exc:
         raise _raise_http_error(exc) from exc
 
