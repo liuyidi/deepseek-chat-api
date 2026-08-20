@@ -287,6 +287,17 @@ input {
   font-weight: 700;
 }
 
+.mini-login-legal-links {
+  margin: 14px 0 0;
+  font-size: 14px;
+}
+
+.mini-login-legal-links a {
+  color: var(--mini-color-muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 @media (max-width: 760px) {
   .mini-login-language {
     top: 18px;

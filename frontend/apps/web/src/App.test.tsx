@@ -46,6 +46,10 @@ describe("resolveAppRoute", () => {
     ["/accounts/", "security-redirect"],
     ["/accounts/security", "security"],
     ["/accounts/security/", "security"],
+    ["/privacy", "privacy"],
+    ["/privacy/", "privacy"],
+    ["/terms", "terms"],
+    ["/terms/", "terms"],
   ] as const)("maps %s to %s", (pathname, expected) => {
     expect(resolveAppRoute(pathname)).toBe(expected);
   });

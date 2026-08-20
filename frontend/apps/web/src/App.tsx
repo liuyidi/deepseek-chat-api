@@ -4,6 +4,7 @@ import { WebLoginPage } from "./login/WebLoginPage";
 import { SecurityCenterPage } from "./security-center/SecurityCenterPage";
 import { createApiSecurityCenterDataSource } from "./security-center/apiDataSource";
 import { SelectAccountPage } from "./select-account/SelectAccountPage";
+import { LegalPage } from "./legal/LegalPage";
 
 export type AppRoute =
   | "login"
@@ -11,7 +12,9 @@ export type AppRoute =
   | "demo-login"
   | "security"
   | "security-redirect"
-  | "select-account";
+  | "select-account"
+  | "privacy"
+  | "terms";
 
 export function resolveAppRoute(pathname: string): AppRoute {
   if (pathname === "/register" || pathname === "/register/") {
@@ -28,6 +31,12 @@ export function resolveAppRoute(pathname: string): AppRoute {
   }
   if (pathname === "/accounts/security" || pathname === "/accounts/security/") {
     return "security";
+  }
+  if (pathname === "/privacy" || pathname === "/privacy/") {
+    return "privacy";
+  }
+  if (pathname === "/terms" || pathname === "/terms/") {
+    return "terms";
   }
   return "login";
 }
@@ -235,6 +244,14 @@ export default function App() {
 
   if (route === "select-account") {
     return <SelectAccountPage authBaseUrl={getAuthBaseUrl()} />;
+  }
+
+  if (route === "privacy") {
+    return <LegalPage documentId="privacy" />;
+  }
+
+  if (route === "terms") {
+    return <LegalPage documentId="terms" />;
   }
 
   return <AuthRoute mode="login" />;

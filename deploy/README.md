@@ -89,9 +89,19 @@ EXTERNAL_AUTH_COOKIE_SECURE=true
 构建登录页时设置 `VITE_GITHUB_LOGIN_ENABLED=true` 和/或 `VITE_GOOGLE_LOGIN_ENABLED=true`。后端未配置完整凭据前必须保持
 前后端开关为 `false`。GitHub / Google access token 仅用于当次读取用户资料，不会持久化。
 
+Google OAuth 同意屏幕可填写：
+
+| 字段 | URL |
+|------|-----|
+| 隐私政策 | `https://auth.liuyidi.me/privacy` |
+| 服务条款 | `https://auth.liuyidi.me/terms` |
+| 应用首页 | `https://auth.liuyidi.me/` |
+
 ## GitHub Actions 发布
 
 工作流：[`.github/workflows/publish-auth-tencent.yml`](../.github/workflows/publish-auth-tencent.yml)
+
+CI 在 runner 上构建 SPA，然后通过 **SCP** 将 `app/`、`alembic/`、`deploy/` 等源码同步到 CVM 的 `/opt/auth/mini-auth`（不再依赖 CVM 上的 `git fetch` 私有仓库）。服务器上的 `/opt/auth/.env` 不会被覆盖。
 
 | 触发 | `workflow_dispatch`，或 `main` 上改动 `app/` / `frontend/` / `deploy/` 等 |
 | 作用 | 拉代码 → CI 构建 SPA → 上传 `frontend-dist` → `docker compose build api && up -d` → 健康检查 → ServerlessShip / 飞书 |

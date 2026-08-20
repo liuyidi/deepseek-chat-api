@@ -314,10 +314,17 @@ function LoginSupportText({
   );
 }
 
-function LoginFooter({ brand, copy }: { brand: string; copy: LoginCopy }) {
+function LoginFooter({ brand, copy, language }: { brand: string; copy: LoginCopy; language: LoginLanguage }) {
   return (
     <footer className="mini-login-footer">
-      {copy.poweredBy} <strong>{brand}</strong>
+      <p>
+        {copy.poweredBy} <strong>{brand}</strong>
+      </p>
+      <p className="mini-login-legal-links">
+        <a href="/privacy">{language === "zh" ? "隐私政策" : "Privacy Policy"}</a>
+        <span aria-hidden="true"> · </span>
+        <a href="/terms">{language === "zh" ? "服务条款" : "Terms of Service"}</a>
+      </p>
     </footer>
   );
 }
@@ -520,7 +527,7 @@ export function WebLoginPage({
 
         {debugCode && isDevelopment ? <div className="mini-login-debug">{copy.debugCode(debugCode)}</div> : null}
 
-        <LoginFooter brand={brand} copy={copy} />
+        <LoginFooter brand={brand} copy={copy} language={language} />
       </section>
     </main>
   );
