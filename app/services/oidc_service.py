@@ -338,25 +338,36 @@ async def start_device_authorization(
     user_agent: str | None = None,
 ) -> DeviceStartResponse:
     expires_at = _utcnow() + timedelta(seconds=DEVICE_CODE_LIFETIME_SECONDS)
+    now = _utcnow()
     device_code = _generate_device_code()
     user_code = _generate_user_code()
     columns = await _device_request_column_names(db)
-    payload = {
+    payload: dict[str, object] = {
+        "id": uuid.uuid4(),
         "device_code": device_code,
         "user_code": user_code,
         "client_id": client_id,
         "scope": scope,
         "verification_uri": verification_uri,
-        "device_label": device_label,
-        "location": location,
-        "ip_address": ip_address,
-        "user_agent": user_agent,
         "expires_at": expires_at,
-        "interval": DEVICE_CODE_INTERVAL_SECONDS,
-        "status": "pending",
     }
-    insert_payload = {key: value for key, value in payload.items() if key in columns}
-    await db.execute(insert(DeviceAuthorizationRequest).values(**insert_payload))
+    if "device_label" in columns:
+        payload["device_label"] = device_label
+    if "location" in columns:
+        payload["location"] = location
+    if "ip_address" in columns:
+        payload["ip_address"] = ip_address
+    if "user_agent" in columns:
+        payload["user_agent"] = user_agent
+    if "interval" in columns:
+        payload["interval"] = DEVICE_CODE_INTERVAL_SECONDS
+    if "status" in columns:
+        payload["status"] = "pending"
+    if "created_at" in columns:
+        payload["created_at"] = now
+    if "updated_at" in columns:
+        payload["updated_at"] = now
+    await db.execute(insert(DeviceAuthorizationRequest).values(**payload))
     await db.commit()
     return DeviceStartResponse(
         device_code=device_code,
