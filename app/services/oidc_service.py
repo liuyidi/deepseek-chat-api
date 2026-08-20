@@ -9,7 +9,7 @@ from urllib.parse import urlparse
 
 from fastapi import HTTPException, status
 from jose import JWTError, jwt
-from sqlalchemy import inspect, select, update
+from sqlalchemy import inspect, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -355,9 +355,8 @@ async def start_device_authorization(
         "interval": DEVICE_CODE_INTERVAL_SECONDS,
         "status": "pending",
     }
-    insert_payload = {key: value for key, value in payload.items() if key in columns or key in {"device_code", "user_code", "client_id", "scope", "verification_uri", "expires_at", "interval", "status"}}
-    record = DeviceAuthorizationRequest(**insert_payload)
-    db.add(record)
+    insert_payload = {key: value for key, value in payload.items() if key in columns}
+    await db.execute(insert(DeviceAuthorizationRequest).values(**insert_payload))
     await db.commit()
     return DeviceStartResponse(
         device_code=device_code,
