@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.models.user import AuthClient, DeviceAuthorizationRequest, User
 from app.schemas.auth import TokenResponse
-from app.schemas.oidc import DeviceStartResponse
+from app.schemas.oidc import DeviceRequestSnapshot, DeviceStartResponse
 from app.services.auth_service import AuthError, issue_tokens, to_user_response
 from app.services.admin_service import _load_list
 
@@ -284,6 +284,10 @@ async def start_device_authorization(
     client_id: str,
     scope: str,
     verification_uri: str,
+    device_label: str | None = None,
+    location: str | None = None,
+    ip_address: str | None = None,
+    user_agent: str | None = None,
 ) -> DeviceStartResponse:
     expires_at = _utcnow() + timedelta(seconds=DEVICE_CODE_LIFETIME_SECONDS)
     device_code = _generate_device_code()
@@ -294,6 +298,10 @@ async def start_device_authorization(
         client_id=client_id,
         scope=scope,
         verification_uri=verification_uri,
+        device_label=device_label,
+        location=location,
+        ip_address=ip_address,
+        user_agent=user_agent,
         expires_at=expires_at,
         interval=DEVICE_CODE_INTERVAL_SECONDS,
         status="pending",
@@ -307,6 +315,30 @@ async def start_device_authorization(
         verification_uri_complete=f"{verification_uri}?user_code={user_code}",
         expires_in=DEVICE_CODE_LIFETIME_SECONDS,
         interval=DEVICE_CODE_INTERVAL_SECONDS,
+    )
+
+
+async def get_device_request_snapshot(
+    db: AsyncSession,
+    *,
+    user_code: str,
+) -> DeviceRequestSnapshot | None:
+    record = await get_device_request_by_user_code(db, user_code)
+    if record is None:
+        return None
+    return DeviceRequestSnapshot(
+        user_code=record.user_code,
+        client_id=record.client_id,
+        scope=record.scope,
+        verification_uri=record.verification_uri,
+        device_label=record.device_label or "Unknown device",
+        location=record.location,
+        created_at=(record.created_at or _utcnow()).isoformat(),
+        ip_address=record.ip_address,
+        user_agent=record.user_agent,
+        status=record.status,
+        approved_user=record.approved_user.nickname if record.approved_user else None,
+        approved_at=record.approved_at.isoformat() if record.approved_at else None,
     )
 
 

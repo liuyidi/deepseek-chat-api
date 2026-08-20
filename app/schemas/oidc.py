@@ -25,6 +25,21 @@ class DeviceStartResponse(BaseModel):
     interval: int
 
 
+class DeviceRequestSnapshot(BaseModel):
+    user_code: str
+    client_id: str
+    scope: str
+    verification_uri: str
+    device_label: str
+    location: str | None = None
+    created_at: str
+    ip_address: str | None = None
+    user_agent: str | None = None
+    status: str
+    approved_user: str | None = None
+    approved_at: str | None = None
+
+
 class DeviceConfirmRequest(BaseModel):
     user_code: str
     approve: bool = True

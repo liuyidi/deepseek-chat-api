@@ -19,6 +19,7 @@ from app.services.oidc_service import (
     exchange_device_code,
     exchange_authorization_code,
     is_custom_scheme_redirect_uri,
+    get_device_request_snapshot,
     normalize_scopes,
     start_device_authorization,
     userinfo_from_user,
@@ -134,12 +135,31 @@ async def device_start(
     db: AsyncSession = Depends(get_db),
 ):
     verification_uri = str(request.base_url).rstrip("/") + "/oauth/device"
+    user_agent = request.headers.get("user-agent")
+    device_label = request.headers.get("x-device-label") or user_agent
+    location = request.headers.get("x-device-location")
+    client_host = request.client.host if request.client else None
     return await start_device_authorization(
         db,
         client_id=body.client_id,
         scope=body.scope,
         verification_uri=verification_uri,
+        device_label=device_label,
+        location=location,
+        ip_address=client_host,
+        user_agent=user_agent,
     )
+
+
+@router.get("/device/request")
+async def device_request(
+    user_code: str = Query(...),
+    db: AsyncSession = Depends(get_db),
+):
+    snapshot = await get_device_request_snapshot(db, user_code=user_code)
+    if snapshot is None:
+        raise HTTPException(status_code=404, detail="Device request not found")
+    return snapshot
 
 
 @router.post("/device/confirm")
