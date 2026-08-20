@@ -6,9 +6,11 @@
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "@vercel/node": "^5.1.16"
+  },
   "devDependencies": {
     "@types/node": "^24.0.0",
-    "@vercel/node": "^5.1.16",
     "typescript": "^5.9.0"
   }
 }

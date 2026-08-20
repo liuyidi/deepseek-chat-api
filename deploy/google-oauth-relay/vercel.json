@@ -1,5 +1,13 @@
 {
   "version": 2,
+  "builds": [
+    { "src": "api/google/exchange.ts", "use": "@vercel/node" },
+    { "src": "api/health.ts", "use": "@vercel/node" }
+  ],
+  "routes": [
+    { "src": "/api/google/exchange", "dest": "/api/google/exchange.ts" },
+    { "src": "/api/health", "dest": "/api/health.ts" }
+  ],
   "functions": {
     "api/google/exchange.ts": {
       "maxDuration": 10

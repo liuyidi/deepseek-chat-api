@@ -1,0 +1,66 @@
+name: Publish Google OAuth Relay (Vercel)
+
+# Deploy deploy/google-oauth-relay to Vercel (serverless functions).
+# Required repo secrets: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID
+# Project env vars (Google credentials) are configured in Vercel Dashboard.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "deploy/google-oauth-relay/**"
+      - ".github/workflows/publish-google-oauth-relay-vercel.yml"
+
+concurrency:
+  group: google-oauth-relay-vercel
+  cancel-in-progress: true
+
+jobs:
+  deploy-relay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: deploy/google-oauth-relay
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Verify Vercel secrets
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          test -n "${VERCEL_TOKEN}" || { echo "Missing secret VERCEL_TOKEN" >&2; exit 1; }
+          test -n "${VERCEL_ORG_ID}" || { echo "Missing secret VERCEL_ORG_ID" >&2; exit 1; }
+          test -n "${VERCEL_PROJECT_ID}" || { echo "Missing secret VERCEL_PROJECT_ID" >&2; exit 1; }
+
+      - name: Deploy to Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          npm install
+          npx vercel deploy --prod --yes \
+            --token="$VERCEL_TOKEN" \
+            --scope="$VERCEL_ORG_ID" \
+            --project="$VERCEL_PROJECT_ID"
+
+      - name: Smoke test relay health
+        run: |
+          set -euo pipefail
+          url="https://mini-auth-google-oauth-relay.vercel.app/api/health"
+          for i in $(seq 1 20); do
+            if curl -fsS --max-time 10 "$url" | grep -q '"ok":true'; then
+              echo "relay health ok"
+              exit 0
+            fi
+            echo "waiting for relay (${i}/20)..."
+            sleep 5
+          done
+          echo "relay health check failed for $url" >&2
+          exit 1

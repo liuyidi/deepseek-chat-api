@@ -5,12 +5,43 @@ codes without direct access to `oauth2.googleapis.com`.
 
 ## Deploy
 
+### Option A: Vercel Dashboard (Git import)
+
+1. [vercel.com/new](https://vercel.com/new) → Import `mini-auth` repository
+2. **Configure Project** (or later **Settings → General**):
+   - **Root Directory**: `deploy/google-oauth-relay` ← required for monorepo
+   - **Framework Preset**: Other
+   - **Build Command**: leave empty
+   - **Output Directory**: leave empty
+3. Add Production environment variables (see `.env.example`)
+4. Deploy
+
+**Where to check Root Directory later:** Project → **Settings** → **General** → scroll to **Root Directory** → should show `deploy/google-oauth-relay` (not `.` or blank).
+
+**If Production deploy failed:** Project → **Deployments** → click the failed row → read **Building** logs. Wrong root often shows build commands for `frontend/` or “no api directory”.
+
+### Option B: GitHub Actions (recommended)
+
+Add repo secrets (same as serverless-ship if you reuse the team token):
+
+| Secret | Value |
+|--------|--------|
+| `VERCEL_TOKEN` | Vercel account token |
+| `VERCEL_ORG_ID` | `team_...` from `.vercel/project.json` or Vercel team settings |
+| `VERCEL_PROJECT_ID` | `prj_...` from `.vercel/project.json` |
+
+Push to `main` touching `deploy/google-oauth-relay/**`, or run workflow **Publish Google OAuth Relay (Vercel)** manually.
+
+### Option C: Local CLI
+
 ```bash
 cd deploy/google-oauth-relay
 npm install
-npx vercel link          # once: create or link a Vercel project
-npx vercel env pull .env.local   # optional, for local smoke tests
+npx vercel link
+npx vercel deploy --prod
 ```
+
+If `fetch failed`, set `HTTP_PROXY` / `HTTPS_PROXY` or use Option A/B.
 
 Set **Production** environment variables in Vercel (see `.env.example`):
 
@@ -20,12 +51,6 @@ Set **Production** environment variables in Vercel (see `.env.example`):
 | `GOOGLE_CLIENT_ID` | Same OAuth client as mini-auth |
 | `GOOGLE_CLIENT_SECRET` | Same OAuth client as mini-auth |
 | `GOOGLE_REDIRECT_URI` | `https://auth.liuyidi.me/api/v1/auth/google/callback` |
-
-Deploy:
-
-```bash
-npx vercel deploy --prod
-```
 
 Note the production URL, e.g. `https://mini-auth-google-oauth-relay.vercel.app`.
 
