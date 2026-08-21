@@ -1,8 +1,14 @@
 from pydantic import BaseModel, Field
 
+DEVICE_CODE_GRANT_TYPE = "urn:ietf:params:oauth:grant-type:device_code"
+DEVICE_CODE_GRANT_TYPES = frozenset({"device_code", DEVICE_CODE_GRANT_TYPE})
+TOKEN_GRANT_TYPE_PATTERN = (
+    rf"^(authorization_code|refresh_token|device_code|{DEVICE_CODE_GRANT_TYPE})$"
+)
+
 
 class OidcTokenRequest(BaseModel):
-    grant_type: str = Field(pattern="^(authorization_code|refresh_token|device_code)$")
+    grant_type: str = Field(pattern=TOKEN_GRANT_TYPE_PATTERN)
     code: str | None = None
     redirect_uri: str | None = None
     client_id: str

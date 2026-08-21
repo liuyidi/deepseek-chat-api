@@ -98,7 +98,7 @@ describe("App", () => {
     expect(screen.queryByRole("heading", { name: "欢迎回来" })).not.toBeInTheDocument();
   });
 
-  it("redirects auth visits to minibot when the bot session is already valid", async () => {
+  it("redirects authenticated auth visits to the security center when no next is provided", async () => {
     window.history.replaceState({}, "", "/login");
     const replaceSpy = vi.fn();
     vi.stubGlobal("location", {
@@ -109,31 +109,26 @@ describe("App", () => {
     });
     vi.stubGlobal(
       "fetch",
-      vi.fn()
-        .mockResolvedValueOnce(
-          new Response(JSON.stringify({ detail: "Not authenticated" }), {
-            status: 401,
-            headers: { "Content-Type": "application/json" },
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            id: "00000000-0000-0000-0000-000000000001",
+            email: "demo@mini-auth.dev",
+            nickname: "demo",
+            created_at: "2026-08-14T00:00:00Z",
           }),
-        )
-        .mockResolvedValueOnce(
-          new Response(JSON.stringify({ detail: "Refresh token required" }), {
-            status: 401,
-            headers: { "Content-Type": "application/json" },
-          }),
-        )
-        .mockResolvedValueOnce(
-          new Response(JSON.stringify({ authenticated: true }), {
+          {
             status: 200,
             headers: { "Content-Type": "application/json" },
-          }),
+          },
         ),
+      ),
     );
 
     render(<App />);
 
     await waitFor(() => {
-      expect(replaceSpy).toHaveBeenCalledWith("https://bot.liuyidi.me/");
+      expect(replaceSpy).toHaveBeenCalledWith("/accounts/security/");
     });
     expect(screen.queryByLabelText("邮箱")).not.toBeInTheDocument();
   });
@@ -165,14 +160,14 @@ describe("getNextUrl", () => {
     expect(getNextUrl()).toBe("/accounts/security/");
   });
 
-  it("defaults production auth visits to minibot", () => {
+  it("defaults production auth visits to the security center", () => {
     vi.stubGlobal("location", {
       ...window.location,
       search: "",
       hostname: "auth.liuyidi.me",
     });
 
-    expect(getNextUrl()).toBe("https://bot.liuyidi.me/");
+    expect(getNextUrl()).toBe("/accounts/security/");
   });
 
   it("keeps an explicit next URL for OAuth sign-in", () => {

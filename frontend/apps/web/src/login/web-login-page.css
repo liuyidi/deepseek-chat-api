@@ -130,7 +130,6 @@ input {
   color: var(--mini-color-ink);
   cursor: pointer;
   font-size: 18px;
-  font-weight: 500;
   line-height: 1;
   text-decoration: none;
 }
@@ -205,6 +204,12 @@ input {
   line-height: 1;
 }
 
+.mini-login-field span.mini-login-code-hint {
+  font-size: 14px;
+  font-weight: 300;
+  color: var(--mini-color-subtle);
+}
+
 .mini-login-field input {
   width: 100%;
   min-height: var(--mini-control-height);
@@ -256,7 +261,6 @@ input {
   color: var(--mini-color-ink);
   cursor: pointer;
   font: inherit;
-  font-weight: 600;
   text-decoration: underline;
 }
 

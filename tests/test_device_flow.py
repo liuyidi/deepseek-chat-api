@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 
 from app.database import get_db
 from app.routers.oidc import router
+from app.schemas.oidc import DEVICE_CODE_GRANT_TYPE
 from app.services.oidc_service import DeviceTokenPendingError
 
 
@@ -54,6 +55,23 @@ class DeviceFlowTest(unittest.TestCase):
                 "/oauth/token",
                 json={
                     "grant_type": "device_code",
+                    "client_id": "minibot",
+                    "device_code": "dev-1",
+                },
+            )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["detail"], "authorization_pending")
+
+    def test_device_token_accepts_standard_device_grant_type(self) -> None:
+        with patch(
+            "app.routers.oidc.exchange_device_code",
+            new=AsyncMock(side_effect=DeviceTokenPendingError("authorization_pending")),
+        ):
+            response = self.client.post(
+                "/oauth/token",
+                json={
+                    "grant_type": DEVICE_CODE_GRANT_TYPE,
                     "client_id": "minibot",
                     "device_code": "dev-1",
                 },

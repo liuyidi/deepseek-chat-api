@@ -8,7 +8,13 @@ from app.database import get_db
 from app.deps import get_current_user, resolve_current_user
 from app.models.user import User
 from app.schemas.auth import TokenResponse
-from app.schemas.oidc import DeviceConfirmRequest, DeviceStartRequest, OidcTokenRequest, OidcUserInfo
+from app.schemas.oidc import (
+    DEVICE_CODE_GRANT_TYPES,
+    DeviceConfirmRequest,
+    DeviceStartRequest,
+    OidcTokenRequest,
+    OidcUserInfo,
+)
 from app.services.auth_service import AuthError
 from app.services.oidc_service import (
     DeviceTokenPendingError,
@@ -107,7 +113,7 @@ async def authorize(
 @router.post("/token", response_model=TokenResponse)
 async def token(body: OidcTokenRequest, db: AsyncSession = Depends(get_db)) -> TokenResponse:
     try:
-        if body.grant_type == "device_code":
+        if body.grant_type in DEVICE_CODE_GRANT_TYPES:
             if not body.device_code:
                 raise AuthError("device_code is required", status_code=400)
             return await exchange_device_code(

@@ -254,7 +254,7 @@ function EmailCodeForm({
 
       {sentEmail ? (
         <label className="mini-login-field">
-          <span>{copy.codeSentTo(sentEmail)}</span>
+          <span className="mini-login-code-hint">{copy.codeSentTo(sentEmail)}</span>
           <input
             type="text"
             inputMode="numeric"
