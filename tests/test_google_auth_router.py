@@ -51,6 +51,32 @@ class GoogleAuthRouterTest(unittest.TestCase):
         self.assertIn("SameSite=lax", cookie)
         self.assertIn("Secure", cookie)
 
+    def test_callback_native_app_redirects_with_tokens(self) -> None:
+        next_url = "/oauth/app-callback?redirect_uri=minibot%3A%2F%2Foauth"
+        signed_context, state, _ = create_oauth_context("google", next_url)
+        completed = SimpleNamespace(
+            next_url=next_url,
+            tokens=TokenResponse(access_token="access", refresh_token="refresh", expires_in=1800),
+        )
+        with (
+            patch("app.routers.google_auth.settings.google_enabled", True),
+            patch("app.routers.google_auth.settings.google_client_id", "client"),
+            patch("app.routers.google_auth.settings.google_client_secret", "secret"),
+            patch("app.routers.google_auth.settings.external_auth_cookie_secure", True),
+            patch("app.routers.google_auth.complete_external_auth", new=AsyncMock(return_value=completed)),
+        ):
+            self.client.cookies.set(OAUTH_CONTEXT_COOKIE, signed_context, path="/api/v1/auth/google/callback")
+            response = self.client.get(
+                f"/api/v1/auth/google/callback?code=code&state={state}",
+                follow_redirects=False,
+            )
+
+        self.assertEqual(response.status_code, 302)
+        location = response.headers["location"]
+        self.assertTrue(location.startswith("minibot://oauth?"))
+        self.assertIn("access_token=access", location)
+        self.assertIn("refresh_token=refresh", location)
+
     def test_callback_sets_session_cookies_and_deletes_context(self) -> None:
         signed_context, state, _ = create_oauth_context("google", "/accounts/security/")
         completed = SimpleNamespace(

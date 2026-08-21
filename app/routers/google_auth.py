@@ -7,6 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database import get_db
 from app.services.external_auth_flow_service import complete_external_auth, start_external_auth
+from app.services.external_auth_redirect import (
+    build_native_oauth_redirect,
+    is_native_app_callback,
+    resolve_native_redirect_uri,
+)
 from app.services.external_auth_state import decode_oauth_context
 from app.services.external_auth_types import ExternalAuthError
 from app.services.google_auth_provider import GoogleAuthProvider
@@ -71,25 +76,31 @@ async def google_callback(
             signed_context,
             meta=session_meta_from_request(request),
         )
-        response = RedirectResponse(completed.next_url, status_code=302)
-        response.set_cookie(
-            "mini_auth_access_token",
-            completed.tokens.access_token,
-            max_age=completed.tokens.expires_in,
-            httponly=True,
-            secure=settings.external_auth_cookie_secure,
-            samesite="lax",
-            path="/",
-        )
-        response.set_cookie(
-            "mini_auth_refresh_token",
-            completed.tokens.refresh_token,
-            max_age=settings.jwt_refresh_expire_days * 86400,
-            httponly=True,
-            secure=settings.external_auth_cookie_secure,
-            samesite="lax",
-            path="/",
-        )
+        if is_native_app_callback(completed.next_url):
+            redirect_uri = resolve_native_redirect_uri(completed.next_url)
+            if not redirect_uri:
+                raise ExternalAuthError("invalid_return_url")
+            response = build_native_oauth_redirect(redirect_uri, completed.tokens)
+        else:
+            response = RedirectResponse(completed.next_url, status_code=302)
+            response.set_cookie(
+                "mini_auth_access_token",
+                completed.tokens.access_token,
+                max_age=completed.tokens.expires_in,
+                httponly=True,
+                secure=settings.external_auth_cookie_secure,
+                samesite="lax",
+                path="/",
+            )
+            response.set_cookie(
+                "mini_auth_refresh_token",
+                completed.tokens.refresh_token,
+                max_age=settings.jwt_refresh_expire_days * 86400,
+                httponly=True,
+                secure=settings.external_auth_cookie_secure,
+                samesite="lax",
+                path="/",
+            )
     except ExternalAuthError as exc:
         params = {"oauth_error": exc.code}
         if next_url:
