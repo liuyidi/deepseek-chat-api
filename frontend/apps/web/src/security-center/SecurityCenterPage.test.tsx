@@ -13,14 +13,18 @@ async function renderLoadedPage() {
 }
 
 describe("SecurityCenterPage", () => {
-  it("shows loading before rendering the complete security overview", async () => {
+  it("shows loading before rendering the account center overview", async () => {
     render(<SecurityCenterPage dataSource={createMockSecurityCenterDataSource()} />);
 
-    expect(screen.getByText("正在加载安全中心…")).toBeInTheDocument();
+    expect(screen.getByText("正在加载账号中心…")).toBeInTheDocument();
     await screen.findByRole("heading", { name: "你好，Mini Auth 用户" });
-    expect(screen.getByText("账号安全体检分")).toBeInTheDocument();
-    expect(screen.getByText("账号保护")).toBeInTheDocument();
+    expect(screen.getByText("账号中心")).toBeInTheDocument();
     expect(screen.getByText("登录设备")).toBeInTheDocument();
+    expect(screen.getByText("授权管理")).toBeInTheDocument();
+    expect(screen.queryByText("账号安全体检分")).not.toBeInTheDocument();
+    expect(screen.queryByText("账号保护")).not.toBeInTheDocument();
+    expect(screen.queryByText("账号管理")).not.toBeInTheDocument();
+    expect(screen.queryByText("安全指引")).not.toBeInTheDocument();
   });
 
   it("offers retry after the initial data load fails", async () => {
@@ -31,19 +35,16 @@ describe("SecurityCenterPage", () => {
 
     render(<SecurityCenterPage dataSource={source} />);
 
-    expect(await screen.findByText("安全中心加载失败")).toBeInTheDocument();
+    expect(await screen.findByText("账号中心加载失败")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "重新加载" })).toBeInTheDocument();
   });
 
-  it("updates the score after enabling two-step verification", async () => {
+  it("opens a logout action from the account menu", async () => {
     const user = await renderLoadedPage();
 
-    await user.click(screen.getByRole("switch", { name: "两步验证" }));
-
-    await waitFor(() => {
-      expect(screen.getByLabelText("安全评分 82 分")).toBeInTheDocument();
-    });
-    expect(screen.getByTestId("two-factor-status")).toHaveTextContent("已设置");
+    await user.click(screen.getByRole("button", { name: "当前用户：Mini Auth 用户" }));
+    const logout = screen.getByRole("menuitem", { name: "退出登录" });
+    expect(logout).toHaveAttribute("href", "/logout?next=%2Flogin");
   });
 
   it("confirms and removes a non-current login device", async () => {
@@ -78,16 +79,21 @@ describe("SecurityCenterPage", () => {
     await user.click(screen.getByRole("button", { name: /应用授权管理/ }));
     const dialog = await screen.findByRole("dialog", { name: "应用授权管理" });
     await waitFor(() => expect(dialog).toHaveTextContent("Minibot"));
+    expect(await screen.findAllByRole("button", { name: "取消授权" })).not.toHaveLength(0);
 
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("dialog", { name: "应用授权管理" })).not.toBeInTheDocument();
   });
 
-  it("moves focus to the first unset setting when optimizing", async () => {
+  it("revokes an authorized application", async () => {
     const user = await renderLoadedPage();
 
-    await user.click(screen.getByRole("button", { name: "前往优化" }));
+    await user.click(screen.getByRole("button", { name: /应用授权管理/ }));
+    const revokeButtons = await screen.findAllByRole("button", { name: "取消授权" });
+    await user.click(revokeButtons[0]!);
 
-    expect(screen.getByRole("button", { name: /登录密码/ })).toHaveFocus();
+    await waitFor(() => {
+      expect(screen.getByRole("status")).toHaveTextContent("Minibot 授权已取消");
+    });
   });
 });

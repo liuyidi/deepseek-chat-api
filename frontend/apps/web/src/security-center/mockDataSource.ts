@@ -15,26 +15,31 @@ const initialDevices: SecurityDevice[] = [
   {
     id: "chrome-mac-current",
     name: "Chrome",
-    system: "Mac",
+    system: "macOS",
     loggedInAt: "2026/08/14 10:36:24",
+    lastSeenAt: "2026/08/14 10:36:24",
     kind: "browser",
     isCurrent: true,
   },
   {
     id: "safari-iphone",
     name: "Safari",
-    system: "iPhone",
+    system: "iOS",
     loggedInAt: "2026/08/13 21:08:55",
+    lastSeenAt: "2026/08/13 21:08:55",
     kind: "mobile",
     isCurrent: false,
   },
   {
     id: "mini-auth-desktop",
     name: "Liu 的 MacBook Pro",
-    system: "macOS 26.0",
+    system: "macOS",
     loggedInAt: "2026/08/12 09:42:18",
+    lastSeenAt: "2026/08/12 09:42:18",
     kind: "desktop",
     isCurrent: false,
+    appName: "Minibot",
+    clientId: "minibot",
   },
 ];
 
@@ -149,6 +154,7 @@ export function createMockSecurityCenterDataSource(): SecurityCenterDataSource {
   let twoFactorEnabled = false;
   let devices = clone(initialDevices);
   let settings = clone(initialSettings);
+  let apps = clone(applications);
 
   function getOverview(): SecurityOverview {
     return {
@@ -202,7 +208,16 @@ export function createMockSecurityCenterDataSource(): SecurityCenterDataSource {
 
     async getAuthorizedApplications() {
       await waitForMock();
-      return clone(applications);
+      return clone(apps);
+    },
+
+    async revokeApplication(clientId) {
+      await waitForMock();
+      const before = apps.length;
+      apps = apps.filter((item) => item.id !== clientId);
+      if (apps.length === before) {
+        throw new SecurityCenterError("NOT_FOUND", "未找到该授权应用");
+      }
     },
   };
 }

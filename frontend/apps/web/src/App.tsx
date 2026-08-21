@@ -4,6 +4,7 @@ import { DevicePage } from "./device/DevicePage";
 import { WebLoginPage } from "./login/WebLoginPage";
 import { SecurityCenterPage } from "./security-center/SecurityCenterPage";
 import { createApiSecurityCenterDataSource } from "./security-center/apiDataSource";
+import { createMockSecurityCenterDataSource } from "./security-center/mockDataSource";
 import { SelectAccountPage } from "./select-account/SelectAccountPage";
 import { LegalPage } from "./legal/LegalPage";
 
@@ -17,6 +18,10 @@ export type AppRoute =
   | "device"
   | "privacy"
   | "terms";
+
+function isDevPreview(): boolean {
+  return import.meta.env.DEV && new URLSearchParams(window.location.search).get("preview") === "1";
+}
 
 export function resolveAppRoute(pathname: string): AppRoute {
   if (pathname === "/register" || pathname === "/register/") {
@@ -191,7 +196,13 @@ export default function App() {
   }
 
   if (route === "security") {
-    return <SecurityCenterPage dataSource={createApiSecurityCenterDataSource(getAuthBaseUrl())} />;
+    return (
+      <SecurityCenterPage
+        dataSource={
+          isDevPreview() ? createMockSecurityCenterDataSource() : createApiSecurityCenterDataSource(getAuthBaseUrl())
+        }
+      />
+    );
   }
 
   if (route === "register") {

@@ -16,6 +16,7 @@ type ApiSecurityUser = {
   nickname: string;
   email: string;
   avatar_initials: string;
+  avatar_url?: string | null;
 };
 
 type ApiSecurityOverview = {
@@ -30,8 +31,13 @@ type ApiSecurityDevice = {
   name: string;
   system: string;
   logged_in_at: string;
+  last_seen_at: string;
   kind: "browser" | "desktop" | "mobile";
   is_current: boolean;
+  client_id?: string | null;
+  app_name?: string | null;
+  ip_address?: string | null;
+  location?: string | null;
 };
 
 type ApiSecuritySetting = {
@@ -64,6 +70,7 @@ type ApiAuthorizedApplication = {
   name: string;
   description: string;
   authorized_at: string;
+  scopes?: string | null;
 };
 
 function joinUrl(baseUrl: string, path: string): string {
@@ -76,6 +83,7 @@ function mapSnapshot(payload: ApiSecuritySnapshot): SecurityCenterSnapshot {
       nickname: payload.user.nickname,
       email: payload.user.email,
       avatarInitials: payload.user.avatar_initials,
+      avatarUrl: payload.user.avatar_url,
     },
     overview: {
       score: payload.overview.score,
@@ -89,8 +97,13 @@ function mapSnapshot(payload: ApiSecuritySnapshot): SecurityCenterSnapshot {
         name: device.name,
         system: device.system,
         loggedInAt: device.logged_in_at,
+        lastSeenAt: device.last_seen_at || device.logged_in_at,
         kind: device.kind,
         isCurrent: device.is_current,
+        clientId: device.client_id,
+        appName: device.app_name,
+        ipAddress: device.ip_address,
+        location: device.location,
       }),
     ),
     settings: payload.settings.map(
@@ -174,8 +187,25 @@ export function createApiSecurityCenterDataSource(baseUrl: string): SecurityCent
           name: item.name,
           description: item.description,
           authorizedAt: item.authorized_at,
+          scopes: item.scopes,
         }),
       );
+    },
+
+    async revokeApplication(clientId) {
+      const response = await fetch(joinUrl(baseUrl, `/api/v1/security/applications/${encodeURIComponent(clientId)}`), {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (response.status === 401) {
+        throw new SecurityCenterError("UNAUTHORIZED", "Not authenticated");
+      }
+      if (response.status === 404) {
+        throw new SecurityCenterError("NOT_FOUND", "Application not found");
+      }
+      if (!response.ok) {
+        throw new SecurityCenterError("MOCK_FAILURE", "Failed to revoke application");
+      }
     },
   };
 }

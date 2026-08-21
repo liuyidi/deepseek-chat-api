@@ -22,35 +22,59 @@ from app.services.auth_service import (
     register_user,
 )
 from app.services.email_auth_service import start_email_login, verify_email_login
+from app.services.request_context import session_meta_from_request
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/register", response_model=AuthResponse, status_code=201)
-async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)) -> AuthResponse:
+async def register(
+    body: RegisterRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> AuthResponse:
     try:
         return await register_user(
             db,
             email=body.email,
             password=body.password,
             nickname=body.nickname,
+            meta=session_meta_from_request(request),
         )
     except AuthError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
 
 
 @router.post("/login", response_model=AuthResponse)
-async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)) -> AuthResponse:
+async def login(
+    body: LoginRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> AuthResponse:
     try:
-        return await login_user(db, email=body.email, password=body.password)
+        return await login_user(
+            db,
+            email=body.email,
+            password=body.password,
+            meta=session_meta_from_request(request),
+        )
     except AuthError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
 
 
 @router.post("/demo-login", response_model=AuthResponse)
-async def demo_login(body: DemoLoginRequest, db: AsyncSession = Depends(get_db)) -> AuthResponse:
+async def demo_login(
+    body: DemoLoginRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> AuthResponse:
     try:
-        return await demo_login_user(db, email=body.email, nickname=body.nickname)
+        return await demo_login_user(
+            db,
+            email=body.email,
+            nickname=body.nickname,
+            meta=session_meta_from_request(request),
+        )
     except AuthError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
 
@@ -62,20 +86,31 @@ async def email_start(
     db: AsyncSession = Depends(get_db),
 ) -> EmailCodeStartResponse:
     try:
+        meta = session_meta_from_request(request)
         return await start_email_login(
             db,
             email=body.email,
-            request_ip=request.client.host if request.client else None,
-            user_agent=request.headers.get("user-agent"),
+            request_ip=meta.ip_address,
+            user_agent=meta.user_agent,
         )
     except AuthError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
 
 
 @router.post("/email/verify", response_model=AuthResponse)
-async def email_verify(body: EmailCodeVerifyRequest, db: AsyncSession = Depends(get_db)) -> AuthResponse:
+async def email_verify(
+    body: EmailCodeVerifyRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> AuthResponse:
     try:
-        return await verify_email_login(db, email=body.email, code=body.code, nickname=body.nickname)
+        return await verify_email_login(
+            db,
+            email=body.email,
+            code=body.code,
+            nickname=body.nickname,
+            meta=session_meta_from_request(request),
+        )
     except AuthError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
 
@@ -118,8 +153,12 @@ async def refresh(
 
 
 @router.post("/logout", status_code=204)
-async def logout(body: LogoutRequest, db: AsyncSession = Depends(get_db)) -> None:
+async def logout(
+    body: LogoutRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> None:
     try:
-        await logout_user(db, body.refresh_token)
+        await logout_user(db, body.refresh_token, meta=session_meta_from_request(request))
     except AuthError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc

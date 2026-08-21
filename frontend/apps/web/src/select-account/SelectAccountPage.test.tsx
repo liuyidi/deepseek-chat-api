@@ -59,15 +59,16 @@ describe("SelectAccountPage", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "选择账号" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "继续以该账号登录" })).toBeInTheDocument();
     });
+    expect(screen.getByText("正在授权 · minibot")).toBeInTheDocument();
     expect(screen.getByText("一流的人")).toBeInTheDocument();
-    expect(screen.getByText("个人版")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /一流的人/ })).toHaveAttribute(
+    expect(screen.getByText("demo@mini-auth.dev")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "以 一流的人 继续" })).toHaveAttribute(
       "href",
       "/oauth/authorize?client_id=minibot&redirect_uri=minibot%3A%2F%2Fauth%2Fcallback&account_confirmed=1",
     );
-    expect(screen.getByRole("link", { name: "切换登录用户" }).getAttribute("href")).toContain(
+    expect(screen.getByRole("link", { name: "使用其他账号" }).getAttribute("href")).toContain(
       "/logout?next=",
     );
   });

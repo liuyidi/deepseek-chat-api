@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.deps import get_current_user
+from app.deps import _extract_access_token, get_current_user
 from app.models.user import User
 from app.schemas.security import (
     AuthorizedApplicationOut,
@@ -12,14 +12,15 @@ from app.schemas.security import (
     SecuritySnapshotOut,
 )
 from app.services.auth_service import AuthError, get_session_id_from_access_token
+from app.services.request_context import session_meta_from_request
 from app.services.security_service import (
     SecurityError,
     build_security_snapshot,
     list_authorized_applications,
     list_security_operations,
+    revoke_authorized_application,
     revoke_security_session,
 )
-from app.deps import _extract_access_token
 
 router = APIRouter(prefix="/api/v1/security", tags=["security"])
 
@@ -63,6 +64,24 @@ async def security_applications(
     return await list_authorized_applications(db, current_user)
 
 
+@router.delete("/applications/{client_id}", status_code=204)
+async def revoke_application(
+    client_id: str,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    try:
+        await revoke_authorized_application(
+            db,
+            user_id=current_user.id,
+            client_id=client_id,
+            meta=session_meta_from_request(request),
+        )
+    except SecurityError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.code) from exc
+
+
 @router.delete("/sessions/{session_id}", status_code=204)
 async def revoke_session(
     session_id: uuid.UUID,
@@ -76,6 +95,7 @@ async def revoke_session(
             user_id=current_user.id,
             session_id=session_id,
             current_session_id=_current_session_id(request),
+            meta=session_meta_from_request(request),
         )
     except SecurityError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.code) from exc

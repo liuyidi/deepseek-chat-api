@@ -6,6 +6,7 @@ from app.config import settings
 from app.database import get_db
 from app.deps import ACCESS_TOKEN_COOKIE
 from app.services.auth_service import AuthError, logout_user
+from app.services.request_context import session_meta_from_request
 
 router = APIRouter(tags=["web"], include_in_schema=False)
 
@@ -42,7 +43,7 @@ async def logout(
     refresh = (request.cookies.get(_REFRESH_COOKIE) or "").strip()
     if refresh:
         try:
-            await logout_user(db, refresh)
+            await logout_user(db, refresh, meta=session_meta_from_request(request))
         except AuthError:
             pass
 

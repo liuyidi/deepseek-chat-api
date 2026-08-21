@@ -18,6 +18,8 @@ from app.schemas.auth import TokenResponse
 from app.schemas.oidc import DeviceRequestSnapshot, DeviceStartResponse
 from app.services.auth_service import AuthError, issue_tokens, to_user_response
 from app.services.admin_service import _load_list
+from app.services.consent_service import upsert_oauth_consent
+from app.services.request_context import SessionMeta
 
 OIDC_CODE_LIFETIME_MINUTES = 5
 DEVICE_CODE_LIFETIME_SECONDS = 900
@@ -216,6 +218,7 @@ async def exchange_authorization_code(
     client_id: str,
     redirect_uri: str,
     code_verifier: str,
+    meta: SessionMeta | None = None,
 ) -> TokenResponse:
     payload = _decode_auth_code(code, client_id=client_id)
     if payload.get("redirect_uri") != redirect_uri:
@@ -231,13 +234,22 @@ async def exchange_authorization_code(
         raise AuthError("User not found", status_code=401)
 
     scope = normalize_scopes(payload.get("scope"))
+    scope_text = " ".join(scope)
     include_id_token = "openid" in scope
+    await upsert_oauth_consent(
+        db,
+        user_id=user.id,
+        client_id=client_id,
+        scopes=scope_text,
+    )
     return await issue_tokens(
         db,
         user,
         client_id=client_id,
         nonce=payload.get("nonce"),
         include_id_token=include_id_token,
+        meta=meta,
+        audit_action="login.oauth.code",
     )
 
 
@@ -455,6 +467,7 @@ async def exchange_device_code(
     *,
     client_id: str,
     device_code: str,
+    meta: SessionMeta | None = None,
 ) -> TokenResponse:
     result = await db.execute(
         select(
@@ -466,6 +479,10 @@ async def exchange_device_code(
             DeviceAuthorizationRequest.status,
             DeviceAuthorizationRequest.approved_user_id,
             DeviceAuthorizationRequest.consumed_at,
+            DeviceAuthorizationRequest.device_label,
+            DeviceAuthorizationRequest.location,
+            DeviceAuthorizationRequest.ip_address,
+            DeviceAuthorizationRequest.user_agent,
         ).where(
             DeviceAuthorizationRequest.device_code == device_code.strip(),
             DeviceAuthorizationRequest.client_id == client_id,
@@ -502,7 +519,27 @@ async def exchange_device_code(
         .where(DeviceAuthorizationRequest.device_code == device_code.strip())
         .values(consumed_at=_utcnow())
     )
-    await db.commit()
+    await db.flush()
     scope = normalize_scopes(record.get("scope"))
+    scope_text = " ".join(scope)
     include_id_token = "openid" in scope
-    return await issue_tokens(db, user, client_id=client_id, include_id_token=include_id_token)
+    device_meta = SessionMeta(
+        user_agent=record.get("user_agent") or (meta.user_agent if meta else None),
+        ip_address=record.get("ip_address") or (meta.ip_address if meta else None),
+        device_label=record.get("device_label") or (meta.device_label if meta else None),
+        location=record.get("location") or (meta.location if meta else None),
+    )
+    await upsert_oauth_consent(
+        db,
+        user_id=user.id,
+        client_id=client_id,
+        scopes=scope_text,
+    )
+    return await issue_tokens(
+        db,
+        user,
+        client_id=client_id,
+        include_id_token=include_id_token,
+        meta=device_meta,
+        audit_action="login.oauth.device",
+    )

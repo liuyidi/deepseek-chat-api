@@ -18,27 +18,46 @@ description: >-
 | `auth.liuyidi.me` | mini-auth | 腾讯云 CVM `/opt/auth` | **本文件** |
 | `serverless-ship.liuyidi.me` | serverless-ship | Vercel | serverless-ship `deploying-vercel-serverless-ship` |
 
-DNS / TLS 入口可以仍在阿里云 nginx 反代到腾讯云（模板 `deploy/nginx.auth.liuyidi.me.conf.example`）。改反代去阿里云 nginx；改 API / 登录页走本仓。
+## 硬性发布规则（必须遵守）
 
-机上布局：`/opt/auth/`（compose、Caddyfile、`.env`、`frontend-dist/`、`mini-auth/` 代码）。SSH 以本机 `deploy/host.env`（gitignore）为准；没有就读 `.github/workflows/publish-auth-tencent.yml` 的 `AUTH_HOST` / `AUTH_SSH_USER` 默认值。不要把 pem / `.env` 写入 commit。
+**所有部署必须：commit → `git push`（到 `main`）→ 由 GitHub Actions workflow 发布。**
 
-## 发布（优先）
+- **允许**：commit / push；`gh run list` / `gh run watch`；验收 `https://auth.liuyidi.me/health`。
+- **禁止**：本机 `ssh` / `rsync` / `scp` 同步源码或 `frontend-dist`；在 CVM 上手动 `docker compose build/up` 当发布路径；绕过 workflow 的热修。
+- **例外**：用户明确要求只读排障（日志）且不是发版时，才可只读 SSH。代码 / SPA 上线仍走 push → workflow。
 
-GitHub Actions → `Publish Auth (Tencent CVM)`（`publish-auth-tencent.yml`）。
+Workflow：`.github/workflows/publish-auth-tencent.yml`（`Publish Auth (Tencent CVM)`）。
 
-- push `main`（`app/` / `frontend/` / `deploy/` 等）或 `workflow_dispatch`
-- CI 构建登录 SPA → 上传 `frontend-dist` → `docker compose build api && up -d` → `https://auth.liuyidi.me/health`
+触发：
 
-## 约定
+1. `git push origin main`（命中 `app/` / `alembic/` / `frontend/` / `deploy/` 等）
+2. 或：`gh workflow run "Publish Auth (Tencent CVM)" --ref main`
 
-1. 不要在阿里云 minibot compose 里起 auth。
-2. 不要在 mlf 那台腾讯云轻量上起 auth（auth 是另一台 CVM）。
-3. minibot 只依赖运行时 `MINIBOT_SERVER_MINI_AUTH_BASE_URL=https://auth.liuyidi.me`。
+API 容器启动会跑 `alembic upgrade head`（见 `deploy/Dockerfile.ecs`）。机上 `/opt/auth/.env` 由 workflow 保留，不要从本机覆盖进 commit。
+
+## Agent 发布步骤
+
+```bash
+git status -sb
+git push -u origin HEAD
+
+gh workflow run "Publish Auth (Tencent CVM)" --ref main   # 若 push 未自动触发
+gh run list --workflow "Publish Auth (Tencent CVM)" --limit 3
+gh run watch
+```
 
 ## 验收
 
 ```bash
 curl -fsS https://auth.liuyidi.me/health
+curl -fsS -o /dev/null -w "login %{http_code}\n" https://auth.liuyidi.me/login
 ```
+
+## 约定
+
+1. 不要在阿里云 minibot compose 里起 auth。
+2. 不要在 mlf 那台腾讯云轻量上起 auth。
+3. minibot 只依赖 `MINIBOT_SERVER_MINI_AUTH_BASE_URL=https://auth.liuyidi.me`。
+4. 不要把 pem / 生产 `.env` 写入 commit。
 
 细节见 `deploy/README.md`、`docs/tencent-auth-deploy.md`。

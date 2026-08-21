@@ -22,6 +22,7 @@ export type SecurityUser = {
   nickname: string;
   email: string;
   avatarInitials: string;
+  avatarUrl?: string | null;
 };
 
 export type SecurityDevice = {
@@ -29,8 +30,13 @@ export type SecurityDevice = {
   name: string;
   system: string;
   loggedInAt: string;
+  lastSeenAt: string;
   kind: "browser" | "desktop" | "mobile";
   isCurrent: boolean;
+  clientId?: string | null;
+  appName?: string | null;
+  ipAddress?: string | null;
+  location?: string | null;
 };
 
 export type SecuritySetting = {
@@ -56,6 +62,7 @@ export type AuthorizedApplication = {
   name: string;
   description: string;
   authorizedAt: string;
+  scopes?: string | null;
 };
 
 export type SecurityCenterSnapshot = {
@@ -88,4 +95,5 @@ export interface SecurityCenterDataSource {
   revokeDevice(deviceId: string): Promise<void>;
   getOperations(): Promise<SecurityOperation[]>;
   getAuthorizedApplications(): Promise<AuthorizedApplication[]>;
+  revokeApplication(clientId: string): Promise<void>;
 }

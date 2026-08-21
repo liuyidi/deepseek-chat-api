@@ -10,6 +10,7 @@ from app.services.external_auth_flow_service import complete_external_auth, star
 from app.services.external_auth_state import decode_oauth_context
 from app.services.external_auth_types import ExternalAuthError
 from app.services.github_auth_provider import GitHubAuthProvider
+from app.services.request_context import session_meta_from_request
 
 router = APIRouter(prefix="/api/v1/auth/github", tags=["external-auth"])
 OAUTH_CONTEXT_COOKIE = "mini_auth_github_oauth_context"
@@ -62,7 +63,14 @@ async def github_callback(
             raise ExternalAuthError("oauth_callback_denied")
         if not code:
             raise ExternalAuthError("oauth_state_invalid")
-        completed = await complete_external_auth(db, provider, code, state, signed_context)
+        completed = await complete_external_auth(
+            db,
+            provider,
+            code,
+            state,
+            signed_context,
+            meta=session_meta_from_request(request),
+        )
         response = RedirectResponse(completed.next_url, status_code=302)
         response.set_cookie(
             "mini_auth_access_token",

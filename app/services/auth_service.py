@@ -12,6 +12,8 @@ from sqlalchemy.orm import selectinload
 from app.config import settings
 from app.models.user import AuthSession, RefreshToken, User
 from app.schemas.auth import AuthResponse, TokenResponse, UserResponse
+from app.services.audit_service import record_audit
+from app.services.request_context import SessionMeta
 
 ALGORITHM = "HS256"
 
@@ -159,10 +161,21 @@ def to_user_response(user: User) -> UserResponse:
     return UserResponse.model_validate(user)
 
 
-async def _create_session(db: AsyncSession, user: User, *, client_id: str | None = None) -> AuthSession:
+async def _create_session(
+    db: AsyncSession,
+    user: User,
+    *,
+    client_id: str | None = None,
+    meta: SessionMeta | None = None,
+) -> AuthSession:
+    meta = meta or SessionMeta()
     session = AuthSession(
         user_id=user.id,
         client_id=client_id,
+        user_agent=meta.user_agent,
+        ip_address=meta.ip_address,
+        device_label=meta.device_label,
+        location=meta.location,
         expires_at=_utcnow() + timedelta(days=settings.jwt_refresh_expire_days),
     )
     db.add(session)
@@ -200,6 +213,8 @@ async def issue_tokens(
     client_id: str | None = None,
     nonce: str | None = None,
     include_id_token: bool = False,
+    meta: SessionMeta | None = None,
+    audit_action: str | None = "login",
 ) -> TokenResponse:
     return await issue_tokens_with_rotation(
         db,
@@ -208,6 +223,8 @@ async def issue_tokens(
         client_id=client_id,
         nonce=nonce,
         include_id_token=include_id_token,
+        meta=meta,
+        audit_action=audit_action,
     )
 
 
@@ -220,9 +237,12 @@ async def issue_tokens_with_rotation(
     nonce: str | None = None,
     include_id_token: bool = False,
     rotated_from_id: uuid.UUID | None = None,
+    meta: SessionMeta | None = None,
+    audit_action: str | None = None,
 ) -> TokenResponse:
+    created_new_session = session is None
     if session is None:
-        session = await _create_session(db, user, client_id=client_id)
+        session = await _create_session(db, user, client_id=client_id, meta=meta)
     elif client_id is not None:
         session.client_id = client_id
 
@@ -251,6 +271,16 @@ async def issue_tokens_with_rotation(
             expires_at=expires_at,
         )
     )
+    if created_new_session and audit_action:
+        await record_audit(
+            db,
+            actor_user_id=user.id,
+            action=audit_action,
+            target_type="session",
+            target_id=str(session.id),
+            ip=(meta.ip_address if meta else None) or session.ip_address,
+            user_agent=(meta.user_agent if meta else None) or session.user_agent,
+        )
     await db.commit()
 
     return TokenResponse(
@@ -267,6 +297,7 @@ async def register_user(
     email: str,
     password: str,
     nickname: str | None,
+    meta: SessionMeta | None = None,
 ) -> AuthResponse:
     normalized_email = email.lower()
     existing = await get_user_by_email(db, normalized_email)
@@ -281,16 +312,22 @@ async def register_user(
     db.add(user)
     await db.flush()
 
-    tokens = await issue_tokens(db, user)
+    tokens = await issue_tokens(db, user, meta=meta, audit_action="login.register")
     return AuthResponse(user=to_user_response(user), tokens=tokens)
 
 
-async def login_user(db: AsyncSession, *, email: str, password: str) -> AuthResponse:
+async def login_user(
+    db: AsyncSession,
+    *,
+    email: str,
+    password: str,
+    meta: SessionMeta | None = None,
+) -> AuthResponse:
     user = await get_user_by_email(db, email)
     if user is None or not verify_password(password, user.password_hash):
         raise AuthError("Invalid email or password", status_code=401)
 
-    tokens = await issue_tokens(db, user)
+    tokens = await issue_tokens(db, user, meta=meta, audit_action="login.password")
     return AuthResponse(user=to_user_response(user), tokens=tokens)
 
 
@@ -299,6 +336,7 @@ async def demo_login_user(
     *,
     email: str = "demo@mini-auth.dev",
     nickname: str = "demo",
+    meta: SessionMeta | None = None,
 ) -> AuthResponse:
     normalized_email = email.strip().lower()
     normalized_nickname = nickname.strip()
@@ -315,7 +353,7 @@ async def demo_login_user(
         db.add(user)
         await db.flush()
 
-    tokens = await issue_tokens(db, user)
+    tokens = await issue_tokens(db, user, meta=meta, audit_action="login.demo")
     return AuthResponse(user=to_user_response(user), tokens=tokens)
 
 
@@ -353,7 +391,12 @@ async def refresh_tokens(db: AsyncSession, refresh_token: str) -> TokenResponse:
     return await issue_tokens_with_rotation(db, user, session=session, rotated_from_id=stored.id)
 
 
-async def logout_user(db: AsyncSession, refresh_token: str) -> None:
+async def logout_user(
+    db: AsyncSession,
+    refresh_token: str,
+    *,
+    meta: SessionMeta | None = None,
+) -> None:
     payload = decode_token(
         refresh_token,
         audience=settings.jwt_audience,
@@ -386,6 +429,15 @@ async def logout_user(db: AsyncSession, refresh_token: str) -> None:
     for token in result.scalars().all():
         token.revoked_at = now
 
+    await record_audit(
+        db,
+        actor_user_id=session.user_id,
+        action="logout",
+        target_type="session",
+        target_id=str(session.id),
+        ip=meta.ip_address if meta else session.ip_address,
+        user_agent=meta.user_agent if meta else session.user_agent,
+    )
     await db.commit()
 
 

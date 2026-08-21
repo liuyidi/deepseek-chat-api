@@ -49,6 +49,8 @@ class SecurityServiceTest(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(snapshot.user.email, "demo@example.com")
         self.assertTrue(snapshot.devices[0].is_current)
+        self.assertEqual(snapshot.devices[0].app_name, "Minibot")
+        self.assertIsNotNone(snapshot.devices[0].last_seen_at)
         password = next(item for item in snapshot.settings if item.id == "login-password")
         self.assertEqual(password.status, "unset")
         login_methods = next(item for item in snapshot.settings if item.id == "login-methods")

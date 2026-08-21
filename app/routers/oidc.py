@@ -32,6 +32,7 @@ from app.services.oidc_service import (
     validate_client_redirect_uri,
     validate_client_scopes,
 )
+from app.services.request_context import session_meta_from_request
 
 
 def _select_account_location(request: Request) -> str:
@@ -111,8 +112,13 @@ async def authorize(
 
 
 @router.post("/token", response_model=TokenResponse)
-async def token(body: OidcTokenRequest, db: AsyncSession = Depends(get_db)) -> TokenResponse:
+async def token(
+    body: OidcTokenRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> TokenResponse:
     try:
+        meta = session_meta_from_request(request)
         if body.grant_type in DEVICE_CODE_GRANT_TYPES:
             if not body.device_code:
                 raise AuthError("device_code is required", status_code=400)
@@ -120,6 +126,7 @@ async def token(body: OidcTokenRequest, db: AsyncSession = Depends(get_db)) -> T
                 db,
                 client_id=body.client_id,
                 device_code=body.device_code,
+                meta=meta,
             )
         return await exchange_authorization_code(
             db,
@@ -127,6 +134,7 @@ async def token(body: OidcTokenRequest, db: AsyncSession = Depends(get_db)) -> T
             client_id=body.client_id,
             redirect_uri=body.redirect_uri or "",
             code_verifier=body.code_verifier or "",
+            meta=meta,
         )
     except AuthError as exc:
         raise _raise_http_error(exc) from exc

@@ -22,6 +22,7 @@ class SecurityUserOut(BaseModel):
     nickname: str
     email: str
     avatar_initials: str
+    avatar_url: str | None = None
 
 
 class SecurityOverviewOut(BaseModel):
@@ -36,8 +37,13 @@ class SecurityDeviceOut(BaseModel):
     name: str
     system: str
     logged_in_at: str
+    last_seen_at: str
     kind: SecurityDeviceKind
     is_current: bool
+    client_id: str | None = None
+    app_name: str | None = None
+    ip_address: str | None = None
+    location: str | None = None
 
 
 class SecuritySettingOut(BaseModel):
@@ -70,3 +76,4 @@ class AuthorizedApplicationOut(BaseModel):
     name: str
     description: str
     authorized_at: str
+    scopes: str | None = None

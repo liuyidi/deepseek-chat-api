@@ -34,6 +34,12 @@ function getAuthBaseUrl(): string {
   return window.location.origin;
 }
 
+function isDevPreview(): boolean {
+  return import.meta.env.DEV && new URLSearchParams(window.location.search).get("preview") === "1";
+}
+
+const PREVIEW_USER = { email: "demo@mini-auth.dev", nickname: "demo" };
+
 function normalizeUserCode(value: string): string {
   return value.trim().toUpperCase();
 }
@@ -97,17 +103,6 @@ export function buildDeviceVerificationUrl(userCode: string): string {
   return query ? `/oauth/device?${query}` : "/oauth/device";
 }
 
-function MiniAuthLogo() {
-  return (
-    <span className="device-mark" aria-hidden="true">
-      <svg viewBox="0 0 40 40" focusable="false">
-        <path d="M20 3.5 34 9v9.2c0 8.8-5.9 15.2-14 18.3C11.9 33.4 6 27 6 18.2V9l14-5.5Z" fill="currentColor" opacity=".14" />
-        <path d="M20 7.8 30 11.7v6.4c0 6.3-3.9 11.1-10 14-6.1-2.9-10-7.7-10-14v-6.4l10-3.9Z" fill="none" stroke="currentColor" strokeWidth="3" />
-      </svg>
-    </span>
-  );
-}
-
 function LoadingSpinner() {
   return <span className="device-spinner" aria-hidden="true" />;
 }
@@ -128,6 +123,11 @@ export function DevicePage() {
 
   useEffect(() => {
     let cancelled = false;
+    if (isDevPreview()) {
+      setUser(PREVIEW_USER);
+      setLoading(false);
+      return;
+    }
     void authClient.getCurrentUser().then((current) => {
       if (cancelled) return;
       if (!current) {
@@ -228,10 +228,9 @@ export function DevicePage() {
     return (
       <main className="device-page">
         <section className="device-shell" aria-labelledby="device-title">
-          <div className="device-brand">
-            <MiniAuthLogo />
-            <span>mini-auth</span>
-          </div>
+          <a className="device-brand" href="/" aria-label="Mini Auth">
+            Mini Auth
+          </a>
 
           <div className="device-copy">
             <p className="device-eyebrow">Device approved</p>
@@ -250,10 +249,9 @@ export function DevicePage() {
   return (
     <main className="device-page">
       <section className="device-shell" aria-labelledby="device-title">
-        <div className="device-brand">
-          <MiniAuthLogo />
-          <span>mini-auth</span>
-        </div>
+        <a className="device-brand" href="/" aria-label="Mini Auth">
+          Mini Auth
+        </a>
 
         <div className="device-copy">
           <p className="device-eyebrow">Sign in with device</p>

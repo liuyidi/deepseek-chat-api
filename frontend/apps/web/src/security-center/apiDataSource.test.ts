@@ -24,11 +24,14 @@ describe("createApiSecurityCenterDataSource", () => {
             devices: [
               {
                 id: "session-1",
-                name: "Minibot",
-                system: "Web",
+                name: "Chrome",
+                system: "macOS",
                 logged_in_at: "2026/08/14 10:36:24",
+                last_seen_at: "2026/08/14 11:00:00",
                 kind: "browser",
                 is_current: true,
+                client_id: "minibot",
+                app_name: "Minibot",
               },
             ],
             settings: [
@@ -53,6 +56,8 @@ describe("createApiSecurityCenterDataSource", () => {
     expect(snapshot.user.avatarInitials).toBe("DU");
     expect(snapshot.overview.optimizableItems).toBe(5);
     expect(snapshot.devices[0].loggedInAt).toBe("2026/08/14 10:36:24");
+    expect(snapshot.devices[0].lastSeenAt).toBe("2026/08/14 11:00:00");
+    expect(snapshot.devices[0].appName).toBe("Minibot");
   });
 
   it("surfaces unauthorized responses as SecurityCenterError", async () => {

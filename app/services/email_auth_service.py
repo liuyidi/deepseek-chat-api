@@ -20,6 +20,7 @@ from app.services.auth_service import (
     to_user_response,
 )
 from app.services.email_service import send_login_code_email
+from app.services.request_context import SessionMeta
 
 
 def _utcnow() -> datetime:
@@ -148,6 +149,7 @@ async def verify_email_login(
     email: str,
     code: str,
     nickname: str | None = None,
+    meta: SessionMeta | None = None,
 ) -> AuthResponse:
     normalized_email = _normalize_email(email)
     pending = await _get_latest_pending_code(db, normalized_email)
@@ -188,5 +190,5 @@ async def verify_email_login(
         db.add(user)
         await db.flush()
 
-    tokens = await issue_tokens(db, user)
+    tokens = await issue_tokens(db, user, meta=meta, audit_action="login.email_code")
     return AuthResponse(user=to_user_response(user), tokens=tokens)

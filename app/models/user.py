@@ -63,6 +63,10 @@ class AuthSession(Base):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
     )
     client_id: Mapped[str | None] = mapped_column(String(100), index=True, nullable=True)
+    user_agent: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    ip_address: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    device_label: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    location: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -70,6 +74,25 @@ class AuthSession(Base):
 
     user: Mapped[User] = relationship(back_populates="sessions")
     refresh_tokens: Mapped[list["RefreshToken"]] = relationship(back_populates="session")
+
+
+class OAuthConsent(Base):
+    __tablename__ = "oauth_consents"
+    __table_args__ = (UniqueConstraint("user_id", "client_id", name="uq_oauth_consents_user_client"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    client_id: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
+    scopes: Mapped[str] = mapped_column(Text, nullable=False, default="openid profile email")
+    authorized_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
 
 class RefreshToken(Base):

@@ -12,6 +12,7 @@ from app.services.external_auth_types import (
     OAuthStartContext,
 )
 from app.services.external_identity_service import resolve_external_identity
+from app.services.request_context import SessionMeta
 
 
 @dataclass(frozen=True)
@@ -40,9 +41,16 @@ async def complete_external_auth(
     code: str,
     state: str,
     signed_context: str,
+    *,
+    meta: SessionMeta | None = None,
 ) -> ExternalAuthResult:
     context = decode_oauth_context(signed_context, provider.name, state)
     identity = await provider.exchange_identity(OAuthCallbackContext(code, context.code_verifier))
     user = await resolve_external_identity(db, identity)
-    tokens = await issue_tokens(db, user)
+    tokens = await issue_tokens(
+        db,
+        user,
+        meta=meta,
+        audit_action=f"login.oauth.{provider.name}",
+    )
     return ExternalAuthResult(user, tokens, context.next_url)

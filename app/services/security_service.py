@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.user import AuthClient, AuthSession, RefreshToken, User
+from app.models.user import AuditLog, AuthSession, RefreshToken, User
 from app.schemas.security import (
     AuthorizedApplicationOut,
     SecurityDeviceOut,
@@ -14,6 +14,14 @@ from app.schemas.security import (
     SecuritySnapshotOut,
     SecurityUserOut,
 )
+from app.services.audit_service import record_audit
+from app.services.consent_service import (
+    ConsentError,
+    list_active_consents,
+    resolve_client_name,
+    revoke_oauth_consent,
+)
+from app.services.request_context import SessionMeta, parse_user_agent
 
 
 class SecurityError(Exception):
@@ -24,10 +32,25 @@ class SecurityError(Exception):
         super().__init__(message)
 
 
-_CLIENT_LABELS: dict[str, tuple[str, str, str]] = {
-    "minibot": ("Minibot", "Web", "browser"),
-    "minikb": ("MiniKB", "Web", "browser"),
-    "mini-auth": ("Mini Auth", "Web", "browser"),
+_CLIENT_LABELS: dict[str, str] = {
+    "minibot": "Minibot",
+    "minikb": "MiniKB",
+    "mini-auth": "Mini Auth",
+}
+
+_ACTION_LABELS: dict[str, str] = {
+    "login": "登录",
+    "login.register": "注册并登录",
+    "login.password": "密码登录",
+    "login.email_code": "邮箱验证码登录",
+    "login.demo": "Demo 登录",
+    "login.oauth.github": "GitHub 登录",
+    "login.oauth.google": "Google 登录",
+    "login.oauth.device": "设备授权登录",
+    "login.oauth.code": "应用授权登录",
+    "logout": "退出登录",
+    "session.revoke": "退出设备",
+    "consent.revoke": "取消应用授权",
 }
 
 _PROVIDER_LABELS = {
@@ -61,24 +84,29 @@ def _avatar_initials(nickname: str) -> str:
     return stripped[:1].upper()
 
 
-def _device_from_session(session: AuthSession, *, is_current: bool) -> SecurityDeviceOut:
-    client_id = (session.client_id or "").strip().lower()
-    label = _CLIENT_LABELS.get(client_id)
-    if label is None:
-        if client_id:
-            name, system, kind = client_id, "Web", "browser"
-        else:
-            name, system, kind = "Web 浏览器", "Web", "browser"
-    else:
-        name, system, kind = label
+def _app_name_for_client(client_id: str | None) -> str | None:
+    if not client_id:
+        return None
+    return _CLIENT_LABELS.get(client_id.lower(), client_id)
 
+
+def _device_from_session(session: AuthSession, *, is_current: bool) -> SecurityDeviceOut:
+    browser, system, kind = parse_user_agent(session.user_agent)
+    label = (session.device_label or "").strip()
+    name = label or browser
+    app_name = _app_name_for_client(session.client_id)
     return SecurityDeviceOut(
         id=str(session.id),
         name=name,
         system=system,
-        logged_in_at=_format_timestamp(session.last_seen_at or session.created_at),
+        logged_in_at=_format_timestamp(session.created_at),
+        last_seen_at=_format_timestamp(session.last_seen_at or session.created_at),
         kind=kind,  # type: ignore[arg-type]
         is_current=is_current,
+        client_id=session.client_id,
+        app_name=app_name,
+        ip_address=session.ip_address,
+        location=session.location,
     )
 
 
@@ -90,9 +118,9 @@ def _identity_summary(user: User) -> str:
         }
     )
     if not providers:
-        return "管理用于登录 Mini Auth 和身份验证的手机号码与邮箱等"
+        return "管理用于登录的手机号码与邮箱等"
     joined = "、".join(providers)
-    return f"已绑定 {joined}。管理用于登录 Mini Auth 和身份验证的手机号码与邮箱等"
+    return f"已绑定 {joined}。管理用于登录的手机号码与邮箱等"
 
 
 def _build_settings(user: User) -> list[SecuritySettingOut]:
@@ -104,7 +132,7 @@ def _build_settings(user: User) -> list[SecuritySettingOut]:
         SecuritySettingOut(
             id="two-factor",
             title="两步验证",
-            description="启用后，登录 Mini Auth 时需完成身份和密码的双重验证，确保账号安全",
+            description="启用后，登录时需完成身份和密码的双重验证，确保账号安全",
             status="unset",
             icon="shield",
             tone="blue",
@@ -120,7 +148,7 @@ def _build_settings(user: User) -> list[SecuritySettingOut]:
         SecuritySettingOut(
             id="login-password",
             title="登录密码",
-            description="设置登录 Mini Auth 的密码",
+            description="设置登录密码",
             status="set" if login_password_set else "unset",
             icon="password",
             tone="orange",
@@ -178,6 +206,20 @@ def _build_overview(settings: list[SecuritySettingOut]) -> SecurityOverviewOut:
     )
 
 
+def _scope_description(scopes: str) -> str:
+    parts = [part for part in scopes.replace(",", " ").split() if part]
+    labels = {
+        "openid": "身份标识",
+        "profile": "基础账号信息",
+        "email": "邮箱地址",
+        "offline_access": "离线访问",
+    }
+    friendly = [labels.get(part, part) for part in parts]
+    if not friendly:
+        return "访问你的基础账号信息"
+    return "访问你的" + "、".join(friendly)
+
+
 async def _load_active_sessions(
     db: AsyncSession,
     user_id: uuid.UUID,
@@ -209,6 +251,7 @@ async def build_security_snapshot(
             nickname=user.nickname,
             email=user.email,
             avatar_initials=_avatar_initials(user.nickname),
+            avatar_url=user.avatar_url,
         ),
         overview=overview,
         devices=[
@@ -220,37 +263,67 @@ async def build_security_snapshot(
 
 
 async def list_security_operations(
-    _db: AsyncSession,
-    _user: User,
+    db: AsyncSession,
+    user: User,
 ) -> list[SecurityOperationOut]:
-    return []
+    result = await db.execute(
+        select(AuditLog)
+        .where(AuditLog.actor_user_id == user.id)
+        .order_by(AuditLog.created_at.desc())
+        .limit(50)
+    )
+    rows = list(result.scalars().all())
+    operations: list[SecurityOperationOut] = []
+    for row in rows:
+        browser, system, _kind = parse_user_agent(row.user_agent)
+        device = browser if browser != "未知设备" else "未知设备"
+        if system and system != "未知系统":
+            device = f"{browser} · {system}"
+        operations.append(
+            SecurityOperationOut(
+                id=str(row.id),
+                action=_ACTION_LABELS.get(row.action, row.action),
+                device=device,
+                occurred_at=_format_timestamp(row.created_at),
+                location=row.ip or "-",
+            )
+        )
+    return operations
 
 
 async def list_authorized_applications(
     db: AsyncSession,
     user: User,
 ) -> list[AuthorizedApplicationOut]:
-    sessions = await _load_active_sessions(db, user.id)
-    seen: set[str] = set()
+    consents = await list_active_consents(db, user.id)
     applications: list[AuthorizedApplicationOut] = []
-
-    for session in sessions:
-        client_id = (session.client_id or "").strip()
-        if not client_id or client_id in seen:
-            continue
-        seen.add(client_id)
-        client_result = await db.execute(select(AuthClient).where(AuthClient.client_id == client_id))
-        client = client_result.scalar_one_or_none()
-        name = client.name if client is not None else _CLIENT_LABELS.get(client_id.lower(), (client_id, "", ""))[0]
+    for consent in consents:
+        name = await resolve_client_name(db, consent.client_id)
+        if name == consent.client_id:
+            name = _CLIENT_LABELS.get(consent.client_id.lower(), consent.client_id)
         applications.append(
             AuthorizedApplicationOut(
-                id=client_id,
+                id=consent.client_id,
                 name=name,
-                description="访问你的基础账号信息和邮箱地址",
-                authorized_at=_format_timestamp(session.created_at)[:10].replace("-", "/"),
+                description=_scope_description(consent.scopes),
+                authorized_at=_format_timestamp(consent.authorized_at)[:10].replace("-", "/"),
+                scopes=consent.scopes,
             )
         )
     return applications
+
+
+async def revoke_authorized_application(
+    db: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+    client_id: str,
+    meta: SessionMeta | None = None,
+) -> None:
+    try:
+        await revoke_oauth_consent(db, user_id=user_id, client_id=client_id, meta=meta)
+    except ConsentError as exc:
+        raise SecurityError(exc.code, exc.message, status_code=exc.status_code) from exc
 
 
 async def revoke_security_session(
@@ -259,6 +332,7 @@ async def revoke_security_session(
     user_id: uuid.UUID,
     session_id: uuid.UUID,
     current_session_id: uuid.UUID | None,
+    meta: SessionMeta | None = None,
 ) -> None:
     if current_session_id is not None and session_id == current_session_id:
         raise SecurityError("current_device", "Cannot revoke the current session", status_code=409)
@@ -287,4 +361,13 @@ async def revoke_security_session(
     for token in token_result.scalars().all():
         token.revoked_at = now
 
+    await record_audit(
+        db,
+        actor_user_id=user_id,
+        action="session.revoke",
+        target_type="session",
+        target_id=str(session.id),
+        ip=meta.ip_address if meta else session.ip_address,
+        user_agent=meta.user_agent if meta else session.user_agent,
+    )
     await db.commit()
