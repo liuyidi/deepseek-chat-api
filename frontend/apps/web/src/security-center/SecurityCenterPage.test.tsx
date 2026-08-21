@@ -18,7 +18,7 @@ describe("SecurityCenterPage", () => {
 
     expect(screen.getByText("正在加载账号中心…")).toBeInTheDocument();
     await screen.findByRole("heading", { name: "你好，Mini Auth 用户" });
-    expect(screen.getByText("账号中心")).toBeInTheDocument();
+    expect(screen.getByText("Minibot账号中心")).toBeInTheDocument();
     expect(screen.getByText("登录设备")).toBeInTheDocument();
     expect(screen.getByText("授权管理")).toBeInTheDocument();
     expect(screen.queryByText("账号安全体检分")).not.toBeInTheDocument();
@@ -47,6 +47,12 @@ describe("SecurityCenterPage", () => {
     expect(logout).toHaveAttribute("href", "/logout?next=%2Flogin");
   });
 
+  it("dedupes login devices by title name", async () => {
+    await renderLoadedPage();
+    expect(screen.getAllByText("Chrome")).toHaveLength(1);
+    expect(screen.getAllByText("Safari")).toHaveLength(1);
+  });
+
   it("confirms and removes a non-current login device", async () => {
     const user = await renderLoadedPage();
 
@@ -68,8 +74,10 @@ describe("SecurityCenterPage", () => {
 
     const dialog = await screen.findByRole("dialog", { name: "操作记录" });
     await waitFor(() => {
-      expect(dialog).toHaveTextContent("邮箱验证码登录");
-      expect(dialog).toHaveTextContent("浙江省杭州市");
+      expect(dialog).toHaveTextContent("以下为近 30 天内最近的 10 条账号登录、切换或主动登出记录");
+      expect(dialog).toHaveTextContent("登录/切换账号");
+      expect(dialog).toHaveTextContent("2026/08/21");
+      expect(dialog).toHaveTextContent("杭州市");
     });
   });
 

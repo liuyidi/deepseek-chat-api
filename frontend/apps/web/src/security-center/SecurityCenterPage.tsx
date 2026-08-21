@@ -23,6 +23,29 @@ type DialogState =
   | { type: "revoke-app"; app: AuthorizedApplication }
   | null;
 
+function formatOperationTime(occurredAt: string): string {
+  const parts = occurredAt.trim().split(/\s+/);
+  return parts.length > 1 ? parts[1]! : occurredAt;
+}
+
+function formatOperationDate(occurredAt: string): string {
+  return occurredAt.trim().split(/\s+/)[0] || occurredAt;
+}
+
+function groupOperationsByDate(items: SecurityOperation[]): { date: string; items: SecurityOperation[] }[] {
+  const groups = new Map<string, SecurityOperation[]>();
+  for (const item of items) {
+    const date = formatOperationDate(item.occurredAt);
+    const bucket = groups.get(date);
+    if (bucket) {
+      bucket.push(item);
+    } else {
+      groups.set(date, [item]);
+    }
+  }
+  return Array.from(groups.entries()).map(([date, groupItems]) => ({ date, items: groupItems }));
+}
+
 function MinibotMark() {
   return (
     <span className="security-brand-mark" aria-hidden="true">
@@ -210,7 +233,14 @@ export function SecurityCenterPage({ dataSource }: SecurityCenterPageProps) {
     try {
       await dataSource.revokeDevice(device.id);
       setSnapshot((current) =>
-        current ? { ...current, devices: current.devices.filter((item) => item.id !== device.id) } : current,
+        current
+          ? {
+              ...current,
+              devices: current.devices.filter(
+                (item) => item.name !== device.name || item.isCurrent,
+              ),
+            }
+          : current,
       );
       setDialog(null);
       setToast(`${device.name} 已退出登录`);
@@ -300,7 +330,7 @@ export function SecurityCenterPage({ dataSource }: SecurityCenterPageProps) {
       <header className="security-topbar">
         <a className="security-brand" href="/accounts/security/">
           <MinibotMark />
-          <span>账号中心</span>
+          <span>Minibot账号中心</span>
         </a>
         <div className="security-topbar-actions">
           <div className="security-account-menu" ref={menuRef}>
@@ -470,15 +500,30 @@ export function SecurityCenterPage({ dataSource }: SecurityCenterPageProps) {
           ) : dialog.items.length === 0 ? (
             <p className="security-empty">暂无操作记录</p>
           ) : (
-            <div className="security-dialog-list">
-              {dialog.items.map((item) => (
-                <div key={item.id}>
-                  <strong>{item.action}</strong>
-                  <span>
-                    {item.device} · {item.location}
-                  </span>
-                  <time>{item.occurredAt}</time>
-                </div>
+            <div className="security-operations">
+              <p className="security-operations-lead">
+                以下为近 30 天内最近的 10 条账号登录、切换或主动登出记录
+              </p>
+              {groupOperationsByDate(dialog.items).map((group) => (
+                <section key={group.date} className="security-operations-group">
+                  <h3 className="security-operations-date">{group.date}</h3>
+                  <div className="security-operations-card">
+                    {group.items.map((item) => (
+                      <div key={item.id} className="security-operations-row">
+                        <div className="security-operations-row-body">
+                          <strong>{item.action}</strong>
+                          <span className="security-operations-meta">
+                            <span>{formatOperationTime(item.occurredAt)}</span>
+                            <span aria-hidden="true">|</span>
+                            <span>{item.location}</span>
+                            <span aria-hidden="true">|</span>
+                            <span>{item.device}</span>
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
               ))}
             </div>
           )}

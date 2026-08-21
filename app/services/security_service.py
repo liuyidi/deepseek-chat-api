@@ -1,7 +1,7 @@
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import AuditLog, AuthSession, RefreshToken, User
@@ -39,19 +39,24 @@ _CLIENT_LABELS: dict[str, str] = {
 }
 
 _ACTION_LABELS: dict[str, str] = {
-    "login": "登录",
+    "login": "登录/切换账号",
     "login.register": "注册并登录",
-    "login.password": "密码登录",
-    "login.email_code": "邮箱验证码登录",
-    "login.demo": "Demo 登录",
-    "login.oauth.github": "GitHub 登录",
-    "login.oauth.google": "Google 登录",
-    "login.oauth.device": "设备授权登录",
-    "login.oauth.code": "应用授权登录",
+    "login.password": "登录/切换账号",
+    "login.email_code": "登录/切换账号",
+    "login.demo": "登录/切换账号",
+    "login.oauth.github": "登录/切换账号",
+    "login.oauth.google": "登录/切换账号",
+    "login.oauth.device": "登录/切换账号",
+    "login.oauth.code": "登录/切换账号",
     "logout": "退出登录",
-    "session.revoke": "退出设备",
+    "session.revoke": "退出登录",
     "consent.revoke": "取消应用授权",
 }
+
+# Security-center "操作记录": login / switch / logout only.
+_OPERATION_RECORD_ACTIONS = frozenset(_ACTION_LABELS) - {"consent.revoke"}
+_OPERATION_RECORD_LIMIT = 10
+_OPERATION_RECORD_DAYS = 30
 
 _PROVIDER_LABELS = {
     "github": "GitHub",
@@ -90,10 +95,15 @@ def _app_name_for_client(client_id: str | None) -> str | None:
     return _CLIENT_LABELS.get(client_id.lower(), client_id)
 
 
-def _device_from_session(session: AuthSession, *, is_current: bool) -> SecurityDeviceOut:
-    browser, system, kind = parse_user_agent(session.user_agent)
+def _session_display_name(session: AuthSession) -> str:
+    browser, _system, _kind = parse_user_agent(session.user_agent)
     label = (session.device_label or "").strip()
-    name = label or browser
+    return label or browser
+
+
+def _device_from_session(session: AuthSession, *, is_current: bool) -> SecurityDeviceOut:
+    _browser, system, kind = parse_user_agent(session.user_agent)
+    name = _session_display_name(session)
     app_name = _app_name_for_client(session.client_id)
     return SecurityDeviceOut(
         id=str(session.id),
@@ -108,6 +118,28 @@ def _device_from_session(session: AuthSession, *, is_current: bool) -> SecurityD
         ip_address=session.ip_address,
         location=session.location,
     )
+
+
+def _dedupe_devices_by_name(devices: list[SecurityDeviceOut]) -> list[SecurityDeviceOut]:
+    """Keep one row per device title; prefer 本机, else most recently active."""
+    best_by_name: dict[str, SecurityDeviceOut] = {}
+    for device in devices:
+        key = device.name
+        current = best_by_name.get(key)
+        if current is None:
+            best_by_name[key] = device
+            continue
+        if device.is_current and not current.is_current:
+            best_by_name[key] = device
+
+    seen: set[str] = set()
+    deduped: list[SecurityDeviceOut] = []
+    for device in devices:
+        if device.name in seen:
+            continue
+        seen.add(device.name)
+        deduped.append(best_by_name[device.name])
+    return deduped
 
 
 def _identity_summary(user: User) -> str:
@@ -254,10 +286,12 @@ async def build_security_snapshot(
             avatar_url=user.avatar_url,
         ),
         overview=overview,
-        devices=[
-            _device_from_session(session, is_current=session.id == current_session_id)
-            for session in sessions
-        ],
+        devices=_dedupe_devices_by_name(
+            [
+                _device_from_session(session, is_current=session.id == current_session_id)
+                for session in sessions
+            ]
+        ),
         settings=settings,
     )
 
@@ -266,11 +300,19 @@ async def list_security_operations(
     db: AsyncSession,
     user: User,
 ) -> list[SecurityOperationOut]:
+    cutoff = _utcnow() - timedelta(days=_OPERATION_RECORD_DAYS)
     result = await db.execute(
         select(AuditLog)
-        .where(AuditLog.actor_user_id == user.id)
+        .where(
+            AuditLog.actor_user_id == user.id,
+            AuditLog.created_at >= cutoff,
+            or_(
+                AuditLog.action.in_(sorted(_OPERATION_RECORD_ACTIONS)),
+                AuditLog.action.like("login%"),
+            ),
+        )
         .order_by(AuditLog.created_at.desc())
-        .limit(50)
+        .limit(_OPERATION_RECORD_LIMIT)
     )
     rows = list(result.scalars().all())
     operations: list[SecurityOperationOut] = []
@@ -279,10 +321,13 @@ async def list_security_operations(
         device = browser if browser != "未知设备" else "未知设备"
         if system and system != "未知系统":
             device = f"{browser} · {system}"
+        action = _ACTION_LABELS.get(row.action)
+        if action is None and row.action.startswith("login"):
+            action = "登录/切换账号"
         operations.append(
             SecurityOperationOut(
                 id=str(row.id),
-                action=_ACTION_LABELS.get(row.action, row.action),
+                action=action or row.action,
                 device=device,
                 occurred_at=_format_timestamp(row.created_at),
                 location=row.ip or "-",
@@ -344,30 +389,44 @@ async def revoke_security_session(
             AuthSession.revoked_at.is_(None),
         )
     )
-    session = result.scalar_one_or_none()
-    if session is None:
+    seed = result.scalar_one_or_none()
+    if seed is None:
+        raise SecurityError("not_found", "Session not found", status_code=404)
+
+    display_name = _session_display_name(seed)
+    active_sessions = await _load_active_sessions(db, user_id)
+    targets = [
+        session
+        for session in active_sessions
+        if _session_display_name(session) == display_name
+        and (current_session_id is None or session.id != current_session_id)
+    ]
+    if not targets:
         raise SecurityError("not_found", "Session not found", status_code=404)
 
     now = _utcnow()
-    session.revoked_at = now
-    session.last_seen_at = now
+    revoked_ids: list[str] = []
+    for session in targets:
+        session.revoked_at = now
+        session.last_seen_at = now
+        revoked_ids.append(str(session.id))
 
-    token_result = await db.execute(
-        select(RefreshToken).where(
-            RefreshToken.session_id == session.id,
-            RefreshToken.revoked_at.is_(None),
+        token_result = await db.execute(
+            select(RefreshToken).where(
+                RefreshToken.session_id == session.id,
+                RefreshToken.revoked_at.is_(None),
+            )
         )
-    )
-    for token in token_result.scalars().all():
-        token.revoked_at = now
+        for token in token_result.scalars().all():
+            token.revoked_at = now
 
     await record_audit(
         db,
         actor_user_id=user_id,
         action="session.revoke",
         target_type="session",
-        target_id=str(session.id),
-        ip=meta.ip_address if meta else session.ip_address,
-        user_agent=meta.user_agent if meta else session.user_agent,
+        target_id=",".join(revoked_ids),
+        ip=meta.ip_address if meta else seed.ip_address,
+        user_agent=meta.user_agent if meta else seed.user_agent,
     )
     await db.commit()

@@ -22,11 +22,29 @@ const initialDevices: SecurityDevice[] = [
     isCurrent: true,
   },
   {
+    id: "chrome-mac-other",
+    name: "Chrome",
+    system: "macOS",
+    loggedInAt: "2026/08/14 09:00:00",
+    lastSeenAt: "2026/08/14 09:00:00",
+    kind: "browser",
+    isCurrent: false,
+  },
+  {
     id: "safari-iphone",
     name: "Safari",
     system: "iOS",
     loggedInAt: "2026/08/13 21:08:55",
     lastSeenAt: "2026/08/13 21:08:55",
+    kind: "mobile",
+    isCurrent: false,
+  },
+  {
+    id: "safari-iphone-old",
+    name: "Safari",
+    system: "iOS",
+    loggedInAt: "2026/08/11 12:00:00",
+    lastSeenAt: "2026/08/11 12:00:00",
     kind: "mobile",
     isCurrent: false,
   },
@@ -106,26 +124,46 @@ const initialSettings: SecuritySetting[] = [
 const operations: SecurityOperation[] = [
   {
     id: "operation-1",
-    action: "账号登录",
-    device: "Chrome · Mac",
-    occurredAt: "2026/08/14 10:36:24",
-    location: "浙江省杭州市",
+    action: "登录/切换账号",
+    device: "Chrome · macOS",
+    occurredAt: "2026/08/21 12:42:24",
+    location: "杭州市",
   },
   {
     id: "operation-2",
-    action: "邮箱验证码登录",
-    device: "Safari · iPhone",
-    occurredAt: "2026/08/13 21:08:55",
-    location: "浙江省杭州市",
+    action: "退出登录",
+    device: "Chrome · macOS",
+    occurredAt: "2026/08/21 12:41:58",
+    location: "杭州市",
   },
   {
     id: "operation-3",
-    action: "刷新登录状态",
-    device: "Mini Auth Desktop · macOS",
-    occurredAt: "2026/08/12 09:42:18",
-    location: "浙江省杭州市",
+    action: "登录/切换账号",
+    device: "Safari · iOS",
+    occurredAt: "2026/08/20 21:08:55",
+    location: "杭州市",
   },
 ];
+
+function dedupeDevicesByName(devices: SecurityDevice[]): SecurityDevice[] {
+  const bestByName = new Map<string, SecurityDevice>();
+  for (const device of devices) {
+    const current = bestByName.get(device.name);
+    if (!current || (device.isCurrent && !current.isCurrent)) {
+      bestByName.set(device.name, device);
+    }
+  }
+  const seen = new Set<string>();
+  const deduped: SecurityDevice[] = [];
+  for (const device of devices) {
+    if (seen.has(device.name)) {
+      continue;
+    }
+    seen.add(device.name);
+    deduped.push(bestByName.get(device.name)!);
+  }
+  return deduped;
+}
 
 const applications: AuthorizedApplication[] = [
   {
@@ -175,7 +213,7 @@ export function createMockSecurityCenterDataSource(): SecurityCenterDataSource {
           avatarInitials: "MA",
         },
         overview: getOverview(),
-        devices,
+        devices: dedupeDevicesByName(devices),
         settings,
       });
     },
@@ -198,7 +236,9 @@ export function createMockSecurityCenterDataSource(): SecurityCenterDataSource {
       if (device.isCurrent) {
         throw new SecurityCenterError("CURRENT_DEVICE", "无法退出当前设备");
       }
-      devices = devices.filter((candidate) => candidate.id !== deviceId);
+      devices = devices.filter(
+        (candidate) => candidate.name !== device.name || candidate.isCurrent,
+      );
     },
 
     async getOperations() {

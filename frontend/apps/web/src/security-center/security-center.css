@@ -121,6 +121,7 @@ body.security-body {
   font-size: 20px;
   font-weight: 600;
   letter-spacing: -0.02em;
+  text-decoration: none;
 }
 
 .security-brand-mark {
@@ -152,6 +153,9 @@ body.security-body {
 
 .security-avatar-button {
   padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
   cursor: pointer;
 }
 
@@ -844,6 +848,68 @@ body.security-body {
 .security-dialog-list time {
   color: var(--mini-color-muted);
   font-size: 14px;
+}
+
+.security-operations {
+  display: grid;
+  gap: 18px;
+}
+
+.security-operations-lead {
+  margin: 0;
+  color: var(--mini-color-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.security-operations-group {
+  display: grid;
+  gap: 10px;
+}
+
+.security-operations-date {
+  margin: 0;
+  color: var(--mini-color-ink);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.security-operations-card {
+  border: 1px solid var(--mini-color-border-soft);
+  border-radius: var(--mini-radius-surface);
+  background: var(--mini-color-canvas);
+  overflow: hidden;
+}
+
+.security-operations-row {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--security-line);
+}
+
+.security-operations-row:last-child {
+  border-bottom: 0;
+}
+
+.security-operations-row-body {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.security-operations-row-body strong {
+  color: var(--mini-color-ink);
+  font-size: 15px;
+  font-weight: 550;
+}
+
+.security-operations-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: var(--mini-color-muted);
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 .security-empty {
