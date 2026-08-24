@@ -1,11 +1,8 @@
 import { useState } from "react";
 import { SafeAreaView, StyleSheet, Text, View } from "react-native";
 
-import {
-  createAuthClient,
-  type AuthCredentials,
-  type RegisterCredentials,
-} from "../src";
+import { createAuthClient } from "../src";
+import { AuthLoginScreen } from "../src/screens";
 
 const authClient = createAuthClient({
   baseUrl: "https://auth.example.com",
@@ -18,35 +15,26 @@ export default function App() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
         <Text style={styles.kicker}>@mini-auth/auth-rn</Text>
-        <Text style={styles.title}>
-          {mode === "login" ? "登录示例" : "注册示例"}
-        </Text>
+        <Text style={styles.title}>登录示例</Text>
         <Text style={styles.subtitle}>
-          本包只提供认证客户端。登录/注册 UI 由业务 App 自己实现。
+          客户端用根入口；原生登录页从 `./screens` 引入。
         </Text>
       </View>
-      <Text
-        accessibilityRole="button"
-        onPress={() => setMode(mode === "login" ? "register" : "login")}
-        style={styles.toggle}
-      >
-        {mode === "login" ? "切换到注册示例" : "切换到登录示例"}
-      </Text>
-      <Text
-        accessibilityRole="button"
-        onPress={() => {
-          void (mode === "login"
-            ? authClient.login({ email: "demo@mini-auth.dev", password: "demo12345" } satisfies AuthCredentials)
-            : authClient.register({
-                email: "demo@mini-auth.dev",
-                password: "demo12345",
-                nickname: "demo",
-              } satisfies RegisterCredentials));
+      <AuthLoginScreen
+        mode={mode}
+        brand="Example"
+        onSendCode={async (email) => ({
+          email,
+          resend_after_seconds: 60,
+        })}
+        onVerifyCode={async () => {
+          await authClient.login({
+            email: "demo@mini-auth.dev",
+            password: "demo12345",
+          });
         }}
-        style={styles.toggle}
-      >
-        调用 {mode === "login" ? "login()" : "register()"}
-      </Text>
+        onSwitchMode={() => setMode(mode === "login" ? "register" : "login")}
+      />
     </SafeAreaView>
   );
 }
@@ -54,7 +42,7 @@ export default function App() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#f5efe7",
+    backgroundColor: "#ffffff",
   },
   header: {
     paddingHorizontal: 20,
@@ -63,30 +51,20 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   kicker: {
-    color: "#8f3f1d",
+    color: "#666666",
     fontSize: 12,
     fontWeight: "700",
     letterSpacing: 1.2,
     textTransform: "uppercase",
   },
   title: {
-    color: "#251c12",
-    fontSize: 30,
-    lineHeight: 34,
-    fontWeight: "800",
-    letterSpacing: -0.7,
+    color: "#080808",
+    fontSize: 22,
+    fontWeight: "700",
   },
   subtitle: {
-    color: "#6a5846",
+    color: "#666666",
     fontSize: 14,
     lineHeight: 20,
-    maxWidth: 520,
-  },
-  toggle: {
-    marginHorizontal: 20,
-    marginTop: 16,
-    color: "#8f3f1d",
-    fontSize: 15,
-    fontWeight: "600",
   },
 });

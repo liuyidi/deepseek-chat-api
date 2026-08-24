@@ -1,7 +1,7 @@
 {
   "name": "@liuyidi/auth-rn",
-  "version": "0.1.0",
-  "description": "React Native auth SDK for mini-auth (client, PKCE, token helpers). No login UI.",
+  "version": "0.2.0",
+  "description": "React Native auth SDK for mini-auth (client, PKCE, tokens) plus a native login screen.",
   "license": "MIT",
   "publishConfig": {
     "registry": "https://npm.pkg.github.com",
@@ -12,22 +12,47 @@
   ],
   "type": "module",
   "main": "./dist/index.js",
-  "module": "./dist/index.mjs",
+  "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "require": "./dist/index.js",
-      "import": "./dist/index.mjs"
+      "require": "./dist/index.cjs",
+      "import": "./dist/index.js"
+    },
+    "./screens": {
+      "types": "./dist/screens.d.ts",
+      "require": "./dist/screens.cjs",
+      "import": "./dist/screens.js"
     }
   },
   "scripts": {
     "build": "tsup"
   },
-  "peerDependencies": {},
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-native": "^0.81.0",
+    "react-native-safe-area-context": "^5.0.0",
+    "react-native-svg": "^15.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react-native": {
+      "optional": true
+    },
+    "react-native-safe-area-context": {
+      "optional": true
+    },
+    "react-native-svg": {
+      "optional": true
+    }
+  },
   "devDependencies": {
+    "@types/react": "^19.1.0",
+    "react": "^19.1.0",
+    "react-native": "^0.81.0",
+    "react-native-safe-area-context": "^5.0.0",
+    "react-native-svg": "^15.0.0",
     "tsup": "^8.5.0",
     "typescript": "^5.3.3"
   }
 }
-

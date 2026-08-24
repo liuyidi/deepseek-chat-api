@@ -1,6 +1,6 @@
 # @mini-auth/auth-rn
 
-Single React Native **auth SDK** package for `mini-auth`.
+React Native **auth SDK** for `mini-auth`, plus a native login screen aligned with the hosted web login.
 
 ## What it includes
 
@@ -8,16 +8,14 @@ Single React Native **auth SDK** package for `mini-auth`.
 - PKCE helpers
 - Authorization URL builder
 - Authorization code exchange helper
-- Shared auth types (`AuthUser`, `AuthResponse`, `TokenResponse`, etc.)
+- Shared auth types
+- Native `AuthLoginScreen` (email OTP + Google / GitHub / Demo). Import from `@liuyidi/auth-rn/screens`.
 
-## What it does NOT include
+The root export stays fetch-only so Node and tests can use the client without React Native.
 
-- Login/register screens were removed from this package.
-- Apps should implement their own login UI (Minibot uses `MiniLoginScreen`) and call this SDK.
+## Client
 
-## Intended usage
-
-```tsx
+```ts
 import { createAuthClient } from "@mini-auth/auth-rn";
 
 const authClient = createAuthClient({
@@ -26,6 +24,27 @@ const authClient = createAuthClient({
 
 await authClient.login({ email, password });
 ```
+
+## Native login screen
+
+Apps own session, navigation, and OAuth. Pass callbacks into the screen:
+
+```tsx
+import { AuthLoginScreen } from "@mini-auth/auth-rn/screens";
+
+<AuthLoginScreen
+  mode="login"
+  brand="Minibot"
+  onSendCode={startEmailCode}
+  onVerifyCode={verifyEmailCode}
+  onGooglePress={loginWithGoogle}
+  onGitHubPress={loginWithGitHub}
+  onDemoPress={enterGuestMode}
+  onSwitchMode={() => setMode(mode === "login" ? "register" : "login")}
+/>;
+```
+
+`MiniLoginScreen` is an alias of `AuthLoginScreen`.
 
 ## Client API
 

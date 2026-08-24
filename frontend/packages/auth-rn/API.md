@@ -1,15 +1,20 @@
 # `@mini-auth/auth-rn` API
 
-`@mini-auth/auth-rn` is the React Native **auth SDK** for `mini-auth`. It does not ship login UI.
+`@mini-auth/auth-rn` is the React Native auth SDK for `mini-auth`. The root export is the client. Native login UI is a separate entry: `@liuyidi/auth-rn/screens` (alias `@mini-auth/auth-rn/screens` in the workspace).
 
 ## Package surface
 
-### Runtime exports
+### Runtime exports (`@mini-auth/auth-rn`)
 
 - `createAuthClient(config)`
 - `createPkcePair()`
 - `buildAuthorizeUrl(params)`
 - `AuthSdkError`
+
+### Screen exports (`@mini-auth/auth-rn/screens`)
+
+- `AuthLoginScreen`
+- `MiniLoginScreen` (alias of `AuthLoginScreen`)
 
 ### Type exports
 
@@ -25,6 +30,9 @@
 - `RegisterCredentials`
 - `RegisterPayload`
 - `TokenResponse`
+- `AuthLoginScreenProps`
+- `AuthLanguage`
+- `EmailCodeStartResult`
 
 ## `createAuthClient`
 
@@ -59,6 +67,22 @@ const authClient = createAuthClient({
 - `createPkcePair()`
   - Generates a `codeVerifier` and `codeChallenge` pair using `S256`
 
+## `AuthLoginScreen`
+
+Native login chrome aligned with hosted `WebLoginPage`: email OTP, Google, GitHub, optional Demo.
+
+Apps pass:
+
+- `mode`: `"login" | "register"`
+- `brand?`
+- `language?` / `onLanguageChange?`
+- `onSendCode(email)`
+- `onVerifyCode(email, code, options?)`
+- `onGooglePress?` / `onGitHubPress?` / `onDemoPress?`
+- `onSwitchMode`
+
+Session storage, navigation, and OAuth `AuthSession` stay in the app.
+
 ## Errors
 
 `createAuthClient()` throws `AuthSdkError` for HTTP failures and transport-level auth errors.
@@ -71,6 +95,6 @@ The error object may include:
 ## Recommended integration
 
 1. Create one shared auth client for the app.
-2. Implement login UI in the app (for Minibot: `MiniLoginScreen`).
+2. Mount `AuthLoginScreen` from `./screens` (Minibot still has a local copy; switch later).
 3. Persist tokens and user session in app-owned storage.
 4. Keep business navigation, profile sync, and app state outside the SDK.

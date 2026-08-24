@@ -281,7 +281,7 @@ flowchart TB
 在本仓库下新增 `frontend/` 工作区，专门承载认证相关前端：
 
 - `frontend/apps/web`：桌面 Web 登录页，同时作为 H5 响应式登录页
-- `frontend/packages/auth-rn`：RN 认证 SDK（client / PKCE / token），不含登录 UI
+- `frontend/packages/auth-rn`：RN 认证 SDK（client / PKCE / token）+ 原生登录页（`./screens`）
 
 这样做的目标是：
 
@@ -293,15 +293,15 @@ flowchart TB
 
 `minibot-react-native` 不建议直接依赖整套前端 UI 仓库，而是依赖 `auth-rn`：
 
-- RN 页面负责展示原生登录界面
+- 原生登录页从 `@liuyidi/auth-rn/screens` 引入（过渡期 Minibot 仍可保留本地副本）
 - SDK 负责调用 `mini-auth` 的认证接口
-- 如果走 OIDC 授权流程，RN 再用系统浏览器完成授权跳转
+- Google / GitHub 用系统浏览器完成 IdP 授权，登录壳本身保持原生
 
 ### 8.3 推荐边界
 
-- `Web`：共享页面层
-- `auth-rn`：共享协议层（SDK）
-- `minibot-react-native`：原生 UI 层（`MiniLoginScreen`）
+- `Web`：托管登录页（`apps/web`）
+- `auth-rn`：SDK + 原生登录页
+- `minibot-react-native`：会话、导航、OAuth 回调（过渡期仍有本地 `MiniLoginScreen`）
 - `mini-auth` 后端：统一认证核心
 
 ### 8.1 Token 类型

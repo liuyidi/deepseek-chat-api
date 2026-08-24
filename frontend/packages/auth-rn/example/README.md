@@ -1,10 +1,10 @@
 # Example
 
-This directory shows how a business app can consume `@mini-auth/auth-rn` as an SDK.
+This directory shows how a business app can consume `@mini-auth/auth-rn`.
 
 ## What it demonstrates
 
 - Creating a shared `createAuthClient()`
-- Calling `login()` / `register()` from app-owned UI
+- Mounting `AuthLoginScreen` from `../src/screens` with app-owned callbacks
 
-Login screens are not part of this package. Apps such as `minibot-react-native` own their own UI (`MiniLoginScreen`).
+Minibot still ships its own `MiniLoginScreen` copy and has not switched to this package yet.
