@@ -1,6 +1,6 @@
 # `@mini-auth/auth-rn` API
 
-`@mini-auth/auth-rn` is the single React Native auth package for `mini-auth`.
+`@mini-auth/auth-rn` is the React Native **auth SDK** for `mini-auth`. It does not ship login UI.
 
 ## Package surface
 
@@ -9,8 +9,6 @@
 - `createAuthClient(config)`
 - `createPkcePair()`
 - `buildAuthorizeUrl(params)`
-- `AuthLoginScreen`
-- `AuthRegisterScreen`
 - `AuthSdkError`
 
 ### Type exports
@@ -18,12 +16,9 @@
 - `AuthClient`
 - `AuthClientConfig`
 - `AuthCredentials`
-- `AuthLoginScreenProps`
-- `AuthRegisterScreenProps`
 - `AuthResponse`
 - `AuthUser`
 - `BuildAuthorizeUrlParams`
-- `DemoAccount`
 - `ExchangeAuthorizationCodeParams`
 - `LoginPayload`
 - `PkcePair`
@@ -64,57 +59,6 @@ const authClient = createAuthClient({
 - `createPkcePair()`
   - Generates a `codeVerifier` and `codeChallenge` pair using `S256`
 
-## Screen components
-
-### `AuthLoginScreen`
-
-Use this for a fully managed RN login page.
-
-Required props:
-
-- `brand`
-- `title`
-- `subtitle`
-- `description`
-- `emailLabel`
-- `passwordLabel`
-- `submitLabel`
-- `registerHint`
-- `registerLinkLabel`
-- `onLogin`
-
-Optional props:
-
-- `guestLabel`
-- `demoAccount`
-- `onRegisterPress`
-- `onGuestPress`
-- `onSuccess`
-
-### `AuthRegisterScreen`
-
-Use this for a fully managed RN register page.
-
-Required props:
-
-- `brand`
-- `title`
-- `subtitle`
-- `description`
-- `emailLabel`
-- `nicknameLabel`
-- `passwordLabel`
-- `confirmPasswordLabel`
-- `submitLabel`
-- `loginHint`
-- `loginLinkLabel`
-- `onRegister`
-
-Optional props:
-
-- `onLoginPress`
-- `onSuccess`
-
 ## Errors
 
 `createAuthClient()` throws `AuthSdkError` for HTTP failures and transport-level auth errors.
@@ -127,6 +71,6 @@ The error object may include:
 ## Recommended integration
 
 1. Create one shared auth client for the app.
-2. Use `AuthLoginScreen` and `AuthRegisterScreen` for RN auth entry points.
+2. Implement login UI in the app (for Minibot: `MiniLoginScreen`).
 3. Persist tokens and user session in app-owned storage.
 4. Keep business navigation, profile sync, and app state outside the SDK.

@@ -10,7 +10,7 @@ frontend/
     web/        # Responsive web login and admin-facing auth pages
   packages/
     auth-ui/    # Shared responsive login page and auth screens
-    auth-rn/    # Single React Native auth package with client + screens
+    auth-rn/    # React Native auth SDK (client, PKCE, tokens; no screens)
 ```
 
 ## Design Goals
@@ -23,7 +23,7 @@ frontend/
 
 - `apps/web`: responsive server-rendered or SPA login experience.
 - `packages/auth-ui`: shared login page and responsive auth screen components.
-- `packages/auth-rn`: shared RN package with token, login, refresh, logout, PKCE, redirect helpers, and auth screens.
+- `packages/auth-rn`: RN SDK with token, login, refresh, logout, PKCE, and redirect helpers. Apps own login UI.
 
 ## Recommended scripts
 

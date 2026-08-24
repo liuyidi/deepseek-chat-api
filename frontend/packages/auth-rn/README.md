@@ -1,6 +1,6 @@
 # @mini-auth/auth-rn
 
-Single React Native auth package for `mini-auth`.
+Single React Native **auth SDK** package for `mini-auth`.
 
 ## What it includes
 
@@ -8,35 +8,23 @@ Single React Native auth package for `mini-auth`.
 - PKCE helpers
 - Authorization URL builder
 - Authorization code exchange helper
-- Reusable login and register screens for RN
+- Shared auth types (`AuthUser`, `AuthResponse`, `TokenResponse`, etc.)
+
+## What it does NOT include
+
+- Login/register screens were removed from this package.
+- Apps should implement their own login UI (Minibot uses `MiniLoginScreen`) and call this SDK.
 
 ## Intended usage
 
-This is the only RN package business apps should consume.
-
 ```tsx
-import { AuthLoginScreen, createAuthClient } from "@mini-auth/auth-rn";
+import { createAuthClient } from "@mini-auth/auth-rn";
 
 const authClient = createAuthClient({
   baseUrl: "https://auth.example.com",
 });
 
-function LoginPage() {
-  return (
-    <AuthLoginScreen
-      brand="My App"
-      title="登录"
-      subtitle="欢迎回来"
-      description="请使用邮箱和密码登录。"
-      emailLabel="邮箱"
-      passwordLabel="密码"
-      submitLabel="登录"
-      registerHint="还没有账号？"
-      registerLinkLabel="去注册"
-      onLogin={(credentials) => authClient.login(credentials)}
-    />
-  );
-}
+await authClient.login({ email, password });
 ```
 
 ## Client API
@@ -53,7 +41,3 @@ function LoginPage() {
 ## Publishing note
 
 The package is source-first in the workspace during development, and compiled to `dist/` when published.
-
-## Example
-
-See [`example/App.tsx`](./example/App.tsx) for a minimal end-to-end RN login/register integration sample.

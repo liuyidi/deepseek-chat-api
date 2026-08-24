@@ -8,6 +8,6 @@ export default defineConfig({
   sourcemap: true,
   target: "es2022",
   outDir: "dist",
-  external: ["react", "react-native", "react-native-safe-area-context"],
+  external: [],
 });
 

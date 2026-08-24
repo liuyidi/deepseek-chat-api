@@ -281,7 +281,7 @@ flowchart TB
 在本仓库下新增 `frontend/` 工作区，专门承载认证相关前端：
 
 - `frontend/apps/web`：桌面 Web 登录页，同时作为 H5 响应式登录页
-- `frontend/packages/auth-rn`：单一共享认证包，包含客户端能力与 RN 登录页
+- `frontend/packages/auth-rn`：RN 认证 SDK（client / PKCE / token），不含登录 UI
 
 这样做的目标是：
 
@@ -300,8 +300,8 @@ flowchart TB
 ### 8.3 推荐边界
 
 - `Web`：共享页面层
-- `auth-rn`：共享协议层 + RN 登录页
-- `minibot-react-native`：原生 UI 层
+- `auth-rn`：共享协议层（SDK）
+- `minibot-react-native`：原生 UI 层（`MiniLoginScreen`）
 - `mini-auth` 后端：统一认证核心
 
 ### 8.1 Token 类型

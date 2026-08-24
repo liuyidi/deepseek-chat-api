@@ -1,10 +1,11 @@
 {
-  "name": "@mini-auth/auth-rn",
+  "name": "@liuyidi/auth-rn",
   "version": "0.1.0",
-  "description": "Single React Native auth SDK for mini-auth, including auth client and login/register screens.",
+  "description": "React Native auth SDK for mini-auth (client, PKCE, token helpers). No login UI.",
   "license": "MIT",
   "publishConfig": {
-    "access": "public"
+    "registry": "https://npm.pkg.github.com",
+    "access": "restricted"
   },
   "files": [
     "dist"
@@ -23,11 +24,7 @@
   "scripts": {
     "build": "tsup"
   },
-  "peerDependencies": {
-    "react": "^19.0.0",
-    "react-native": "^0.81.0",
-    "react-native-safe-area-context": "^5.0.0"
-  },
+  "peerDependencies": {},
   "devDependencies": {
     "tsup": "^8.5.0",
     "typescript": "^5.3.3"

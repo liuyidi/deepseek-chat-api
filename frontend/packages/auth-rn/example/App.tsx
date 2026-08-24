@@ -1,9 +1,7 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { SafeAreaView, StyleSheet, Text, View } from "react-native";
 
 import {
-  AuthLoginScreen,
-  AuthRegisterScreen,
   createAuthClient,
   type AuthCredentials,
   type RegisterCredentials,
@@ -15,52 +13,40 @@ const authClient = createAuthClient({
 
 export default function App() {
   const [mode, setMode] = useState<"login" | "register">("login");
-  const title = useMemo(() => (mode === "login" ? "登录示例" : "注册示例"), [mode]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
         <Text style={styles.kicker}>@mini-auth/auth-rn</Text>
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.subtitle}>业务方只需要接入这一包，就能拿到 RN 登录页和认证客户端。</Text>
+        <Text style={styles.title}>
+          {mode === "login" ? "登录示例" : "注册示例"}
+        </Text>
+        <Text style={styles.subtitle}>
+          本包只提供认证客户端。登录/注册 UI 由业务 App 自己实现。
+        </Text>
       </View>
-
-      {mode === "login" ? (
-        <AuthLoginScreen
-          brand="Example App"
-          title="欢迎回来"
-          subtitle="请先完成登录"
-          description="登录成功后会拿到 access token、refresh token 和用户信息。"
-          emailLabel="邮箱"
-          passwordLabel="密码"
-          submitLabel="登录"
-          registerHint="还没有账号？"
-          registerLinkLabel="去注册"
-          demoAccount={{ email: "demo@mini-auth.dev", password: "demo12345", label: "demo 账号" }}
-          onLogin={async (credentials: AuthCredentials) => {
-            await authClient.login(credentials);
-          }}
-          onRegisterPress={() => setMode("register")}
-        />
-      ) : (
-        <AuthRegisterScreen
-          brand="Example App"
-          title="创建账号"
-          subtitle="注册后自动登录"
-          description="注册页直接复用同一包里的原生 UI。"
-          emailLabel="邮箱"
-          nicknameLabel="昵称"
-          passwordLabel="密码"
-          confirmPasswordLabel="确认密码"
-          submitLabel="注册"
-          loginHint="已经有账号？"
-          loginLinkLabel="返回登录"
-          onRegister={async (credentials: RegisterCredentials) => {
-            await authClient.register(credentials);
-          }}
-          onLoginPress={() => setMode("login")}
-        />
-      )}
+      <Text
+        accessibilityRole="button"
+        onPress={() => setMode(mode === "login" ? "register" : "login")}
+        style={styles.toggle}
+      >
+        {mode === "login" ? "切换到注册示例" : "切换到登录示例"}
+      </Text>
+      <Text
+        accessibilityRole="button"
+        onPress={() => {
+          void (mode === "login"
+            ? authClient.login({ email: "demo@mini-auth.dev", password: "demo12345" } satisfies AuthCredentials)
+            : authClient.register({
+                email: "demo@mini-auth.dev",
+                password: "demo12345",
+                nickname: "demo",
+              } satisfies RegisterCredentials));
+        }}
+        style={styles.toggle}
+      >
+        调用 {mode === "login" ? "login()" : "register()"}
+      </Text>
     </SafeAreaView>
   );
 }
@@ -95,5 +81,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     maxWidth: 520,
+  },
+  toggle: {
+    marginHorizontal: 20,
+    marginTop: 16,
+    color: "#8f3f1d",
+    fontSize: 15,
+    fontWeight: "600",
   },
 });
