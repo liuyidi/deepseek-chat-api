@@ -440,9 +440,9 @@ async def logout_user(
         target_id=str(session.id),
         ip=meta.ip_address if meta else session.ip_address,
         user_agent=meta.user_agent if meta else session.user_agent,
-        device_label=meta.device_label if meta else session.device_label,
+        device_label=(meta.device_label if meta else None) or session.device_label,
         client_id=session.client_id,
-        location=meta.location if meta else session.location,
+        location=(meta.location if meta else None) or session.location,
     )
     await db.commit()
 
