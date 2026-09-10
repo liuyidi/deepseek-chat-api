@@ -47,6 +47,16 @@ function deviceLoginMethod(device: SecurityDevice): string {
   return [device.appName, device.system].filter(Boolean).join(" · ");
 }
 
+function deviceIpLine(device: SecurityDevice): string {
+  const masked = device.ipAddress
+    ? device.ipAddress.replace(/^(\d+\.\d+\.\d+)\.\d+$/, "$1.***")
+    : null;
+  if (masked && device.location) {
+    return `${masked} (${device.location})`;
+  }
+  return masked || device.location || "-";
+}
+
 function deviceListSubtitle(device: SecurityDevice): string {
   const ip = deviceIpLine(device);
   const parts = [ip !== "-" ? ip : null, `最近活跃 ${device.lastSeenAt}`].filter(Boolean);
