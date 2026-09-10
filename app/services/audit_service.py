@@ -18,6 +18,9 @@ async def record_audit(
     target_id: str | None = None,
     ip: str | None = None,
     user_agent: str | None = None,
+    device_label: str | None = None,
+    client_id: str | None = None,
+    location: str | None = None,
     commit: bool = False,
 ) -> None:
     db.add(
@@ -28,6 +31,9 @@ async def record_audit(
             target_id=target_id,
             ip=ip,
             user_agent=user_agent,
+            device_label=device_label,
+            client_id=client_id,
+            location=location,
         )
     )
     if commit:

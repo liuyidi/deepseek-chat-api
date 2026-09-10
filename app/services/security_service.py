@@ -444,5 +444,8 @@ async def revoke_security_session(
         target_id=",".join(revoked_ids),
         ip=meta.ip_address if meta else seed.ip_address,
         user_agent=meta.user_agent if meta else seed.user_agent,
+        device_label=seed.device_label,
+        client_id=seed.client_id,
+        location=seed.location,
     )
     await db.commit()

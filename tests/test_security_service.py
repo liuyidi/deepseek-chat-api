@@ -157,6 +157,29 @@ class SecurityServiceTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(ops[0].status, "设备活跃")
         self.assertEqual(ops[0].ip_address, "115.196.84.12")
 
+    async def test_list_security_operations_uses_stored_device_metadata(self) -> None:
+        user = self._user()
+        row = AuditLog(
+            id=uuid.uuid4(),
+            actor_user_id=user.id,
+            action="login.email_code",
+            ip="115.196.84.12",
+            user_agent="Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)",
+            device_label="iPhone 14 Plus",
+            client_id="minibot",
+            location="浙江省杭州市",
+            created_at=datetime.now(UTC),
+        )
+        db = AsyncMock()
+        db.execute = AsyncMock(
+            return_value=SimpleNamespace(scalars=lambda: SimpleNamespace(all=lambda: [row]))
+        )
+        ops = await list_security_operations(db, user)
+        self.assertEqual(len(ops), 1)
+        self.assertEqual(ops[0].device, "iPhone 14 Plus")
+        self.assertEqual(ops[0].app_name, "Minibot")
+        self.assertIn("杭州", ops[0].location)
+
     async def test_list_security_operations_logout_status(self) -> None:
         user = self._user()
         row = AuditLog(
