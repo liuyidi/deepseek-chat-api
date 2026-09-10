@@ -69,6 +69,11 @@ class SecurityOperationOut(BaseModel):
     device: str
     occurred_at: str
     location: str
+    kind: SecurityDeviceKind | None = None
+    app_name: str | None = None
+    ip_address: str | None = None
+    ip_masked: str | None = None
+    status: str | None = None
 
 
 class AuthorizedApplicationOut(BaseModel):

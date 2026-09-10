@@ -15,6 +15,7 @@ from app.schemas.security import (
     SecurityUserOut,
 )
 from app.services.audit_service import record_audit
+from app.services.ip_mask import mask_ip
 from app.services.consent_service import (
     ConsentError,
     list_active_consents,
@@ -317,20 +318,35 @@ async def list_security_operations(
     rows = list(result.scalars().all())
     operations: list[SecurityOperationOut] = []
     for row in rows:
-        browser, system, _kind = parse_user_agent(row.user_agent)
-        device = browser if browser != "未知设备" else "未知设备"
-        if system and system != "未知系统":
-            device = f"{browser} · {system}"
+        browser, system, kind = parse_user_agent(row.user_agent)
+        device_label = getattr(row, "device_label", None)
+        if device_label and str(device_label).strip():
+            device = str(device_label).strip()
+        else:
+            device = browser if browser != "未知设备" else "未知设备"
+            if system and system != "未知系统":
+                device = f"{browser} · {system}"
         action = _ACTION_LABELS.get(row.action)
         if action is None and row.action.startswith("login"):
             action = "登录/切换账号"
+        if row.action in {"logout", "session.revoke"}:
+            status = "已退出"
+        else:
+            status = "设备活跃"
+        location_text = getattr(row, "location", None) or row.ip or "-"
+        app_name = _app_name_for_client(getattr(row, "client_id", None))
         operations.append(
             SecurityOperationOut(
                 id=str(row.id),
                 action=action or row.action,
                 device=device,
                 occurred_at=_format_timestamp(row.created_at),
-                location=row.ip or "-",
+                location=location_text,
+                kind=kind,  # type: ignore[arg-type]
+                app_name=app_name,
+                ip_address=row.ip,
+                ip_masked=mask_ip(row.ip),
+                status=status,
             )
         )
     return operations

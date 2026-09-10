@@ -7,13 +7,15 @@ from unittest.mock import AsyncMock
 from fastapi import FastAPI
 
 from app.database import get_db
-from app.models.user import AuthSession, User, UserIdentity
+from app.models.user import AuditLog, AuthSession, User, UserIdentity
 from app.routers.security import router
 from app.schemas.security import SecurityDeviceOut
+from app.services.ip_mask import mask_ip
 from app.services.security_service import (
     SecurityError,
     _dedupe_devices_by_name,
     build_security_snapshot,
+    list_security_operations,
     revoke_security_session,
 )
 
@@ -128,6 +130,50 @@ class SecurityServiceTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(snapshot.devices), 1)
         self.assertEqual(snapshot.devices[0].name, "Chrome")
         self.assertTrue(snapshot.devices[0].is_current)
+
+    def test_mask_ip_ipv4(self) -> None:
+        self.assertEqual(mask_ip("115.196.84.12"), "115.196.84.***")
+        self.assertIsNone(mask_ip(None))
+        self.assertIsNone(mask_ip(""))
+
+    async def test_list_security_operations_includes_enriched_fields(self) -> None:
+        user = self._user()
+        row = AuditLog(
+            id=uuid.uuid4(),
+            actor_user_id=user.id,
+            action="login.email_code",
+            ip="115.196.84.12",
+            user_agent="Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)",
+            created_at=datetime.now(UTC),
+        )
+        db = AsyncMock()
+        db.execute = AsyncMock(
+            return_value=SimpleNamespace(scalars=lambda: SimpleNamespace(all=lambda: [row]))
+        )
+        ops = await list_security_operations(db, user)
+        self.assertEqual(len(ops), 1)
+        self.assertEqual(ops[0].kind, "mobile")
+        self.assertEqual(ops[0].ip_masked, "115.196.84.***")
+        self.assertEqual(ops[0].status, "设备活跃")
+        self.assertEqual(ops[0].ip_address, "115.196.84.12")
+
+    async def test_list_security_operations_logout_status(self) -> None:
+        user = self._user()
+        row = AuditLog(
+            id=uuid.uuid4(),
+            actor_user_id=user.id,
+            action="logout",
+            ip="10.0.0.1",
+            user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+            created_at=datetime.now(UTC),
+        )
+        db = AsyncMock()
+        db.execute = AsyncMock(
+            return_value=SimpleNamespace(scalars=lambda: SimpleNamespace(all=lambda: [row]))
+        )
+        ops = await list_security_operations(db, user)
+        self.assertEqual(len(ops), 1)
+        self.assertEqual(ops[0].status, "已退出")
 
     async def test_revoke_session_rejects_current_device(self) -> None:
         session_id = uuid.uuid4()
