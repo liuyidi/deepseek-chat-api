@@ -128,7 +128,7 @@ class SecurityServiceTest(unittest.IsolatedAsyncioTestCase):
 
         snapshot = await build_security_snapshot(db, user, current_session_id=current_id)
         self.assertEqual(len(snapshot.devices), 1)
-        self.assertEqual(snapshot.devices[0].name, "Chrome")
+        self.assertEqual(snapshot.devices[0].name, "Chrome · macOS")
         self.assertTrue(snapshot.devices[0].is_current)
 
     def test_mask_ip_ipv4(self) -> None:

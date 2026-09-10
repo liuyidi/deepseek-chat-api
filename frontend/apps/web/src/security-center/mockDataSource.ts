@@ -20,6 +20,7 @@ const initialDevices: SecurityDevice[] = [
     lastSeenAt: "2026/08/14 10:36:24",
     kind: "browser",
     isCurrent: true,
+    location: "浙江省杭州市",
   },
   {
     id: "chrome-mac-other",
@@ -29,6 +30,7 @@ const initialDevices: SecurityDevice[] = [
     lastSeenAt: "2026/08/14 09:00:00",
     kind: "browser",
     isCurrent: false,
+    location: "浙江省杭州市",
   },
   {
     id: "safari-iphone",
@@ -38,6 +40,7 @@ const initialDevices: SecurityDevice[] = [
     lastSeenAt: "2026/08/13 21:08:55",
     kind: "mobile",
     isCurrent: false,
+    location: "浙江省杭州市",
   },
   {
     id: "safari-iphone-old",
@@ -47,6 +50,7 @@ const initialDevices: SecurityDevice[] = [
     lastSeenAt: "2026/08/11 12:00:00",
     kind: "mobile",
     isCurrent: false,
+    location: "上海市",
   },
   {
     id: "mini-auth-desktop",
@@ -58,6 +62,7 @@ const initialDevices: SecurityDevice[] = [
     isCurrent: false,
     appName: "Minibot",
     clientId: "minibot",
+    location: "浙江省杭州市",
   },
 ];
 

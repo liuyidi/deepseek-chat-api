@@ -31,7 +31,10 @@ class AuthRefreshCookieTest(unittest.IsolatedAsyncioTestCase):
             result = await refresh(request=request, response=response, body=None, db=MagicMock())
 
         self.assertIs(result, tokens)
-        refresh_tokens.assert_awaited_once_with(unittest.mock.ANY, "cookie-refresh")
+        refresh_tokens.assert_awaited_once()
+        args, kwargs = refresh_tokens.await_args
+        self.assertEqual(args[1], "cookie-refresh")
+        self.assertIn("meta", kwargs)
         self.assertTrue(any("mini_auth_refresh_token=refresh" in value for value in response.headers.getlist("set-cookie")))
 
     async def test_http_endpoint_accepts_cookie_without_request_body(self) -> None:

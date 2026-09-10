@@ -15,6 +15,7 @@ from app.schemas.security import (
     SecurityUserOut,
 )
 from app.services.audit_service import record_audit
+from app.services.ip_location import resolve_ip_location
 from app.services.ip_mask import mask_ip
 from app.services.consent_service import (
     ConsentError,
@@ -97,15 +98,20 @@ def _app_name_for_client(client_id: str | None) -> str | None:
 
 
 def _session_display_name(session: AuthSession) -> str:
-    browser, _system, _kind = parse_user_agent(session.user_agent)
+    browser, system, _kind = parse_user_agent(session.user_agent)
     label = (session.device_label or "").strip()
-    return label or browser
+    if label:
+        return label
+    if system and system != "未知系统":
+        return f"{browser} · {system}"
+    return browser
 
 
 def _device_from_session(session: AuthSession, *, is_current: bool) -> SecurityDeviceOut:
     _browser, system, kind = parse_user_agent(session.user_agent)
     name = _session_display_name(session)
     app_name = _app_name_for_client(session.client_id)
+    location = (session.location or "").strip() or resolve_ip_location(session.ip_address)
     return SecurityDeviceOut(
         id=str(session.id),
         name=name,
@@ -117,7 +123,7 @@ def _device_from_session(session: AuthSession, *, is_current: bool) -> SecurityD
         client_id=session.client_id,
         app_name=app_name,
         ip_address=session.ip_address,
-        location=session.location,
+        location=location,
     )
 
 
@@ -333,7 +339,12 @@ async def list_security_operations(
             status = "已退出"
         else:
             status = "设备活跃"
-        location_text = getattr(row, "location", None) or row.ip or "-"
+        location_text = (
+            (getattr(row, "location", None) or "").strip()
+            or resolve_ip_location(row.ip)
+            or row.ip
+            or "-"
+        )
         app_name = _app_name_for_client(getattr(row, "client_id", None))
         operations.append(
             SecurityOperationOut(

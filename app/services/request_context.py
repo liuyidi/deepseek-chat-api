@@ -6,6 +6,8 @@ from dataclasses import dataclass
 
 from fastapi import Request
 
+from app.services.ip_location import resolve_ip_location
+
 
 @dataclass(frozen=True, slots=True)
 class SessionMeta:
@@ -36,12 +38,17 @@ def session_meta_from_request(
     label = (device_label or request.headers.get("x-device-label") or "").strip() or None
     if label and len(label) > 255:
         label = label[:255]
-    loc = (location or "").strip() or None
+    ip_address = client_ip_from_request(request)
+    loc = (
+        (location or request.headers.get("x-device-location") or "").strip()
+        or resolve_ip_location(ip_address)
+        or None
+    )
     if loc and len(loc) > 255:
         loc = loc[:255]
     return SessionMeta(
         user_agent=user_agent,
-        ip_address=client_ip_from_request(request),
+        ip_address=ip_address,
         device_label=label,
         location=loc,
     )

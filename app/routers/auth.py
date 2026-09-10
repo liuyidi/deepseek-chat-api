@@ -127,7 +127,7 @@ async def refresh(
     if not refresh_token:
         raise HTTPException(status_code=401, detail="Refresh token required")
     try:
-        tokens = await refresh_tokens(db, refresh_token)
+        tokens = await refresh_tokens(db, refresh_token, meta=session_meta_from_request(request))
         if cookie_flow:
             response.set_cookie(
                 "mini_auth_access_token",

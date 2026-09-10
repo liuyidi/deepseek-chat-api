@@ -47,14 +47,10 @@ function deviceLoginMethod(device: SecurityDevice): string {
   return [device.appName, device.system].filter(Boolean).join(" · ");
 }
 
-function deviceIpLine(device: SecurityDevice): string {
-  const masked = device.ipAddress
-    ? device.ipAddress.replace(/^(\d+\.\d+\.\d+)\.\d+$/, "$1.***")
-    : null;
-  if (masked && device.location) {
-    return `${masked} (${device.location})`;
-  }
-  return masked || device.location || "-";
+function deviceListSubtitle(device: SecurityDevice): string {
+  const ip = deviceIpLine(device);
+  const parts = [ip !== "-" ? ip : null, `最近活跃 ${device.lastSeenAt}`].filter(Boolean);
+  return parts.join(" · ");
 }
 
 function groupOperationsByDate(items: SecurityOperation[]): { date: string; items: SecurityOperation[] }[] {
@@ -144,7 +140,7 @@ function Panel({
         <h2>{title}</h2>
         {action}
       </div>
-      {children}
+      <div className="security-panel-body">{children}</div>
     </section>
   );
 }
@@ -384,7 +380,7 @@ export function SecurityCenterPage({ dataSource }: SecurityCenterPageProps) {
         <section className="security-hero">
           {renderAvatar("hero", user.avatarInitials, user.avatarUrl)}
           <h1>你好，{user.nickname}</h1>
-          <p>欢迎来到账号中心，你可以在这里管理登录设备与应用授权</p>
+          <p>管理登录设备与应用授权</p>
         </section>
 
         <div className="security-grid">
@@ -418,8 +414,9 @@ export function SecurityCenterPage({ dataSource }: SecurityCenterPageProps) {
                             <span className="security-current-device">本机</span>
                           ) : null}
                         </strong>
-                        {device.location ? <span>{device.location}</span> : null}
-                        <span>最近活跃：{device.lastSeenAt}</span>
+                        <span>
+                          {deviceListSubtitle(device)}
+                        </span>
                       </div>
                       <LineIcon name="chevron" />
                     </button>
@@ -427,11 +424,15 @@ export function SecurityCenterPage({ dataSource }: SecurityCenterPageProps) {
                 )}
               </div>
               {devices.length > 0 ? (
-                <button type="button" className="security-view-all" onClick={() => setDialog({ type: "devices" })}>
-                  <span />
-                  查看全部设备 <LineIcon name="chevron" />
-                  <span />
-                </button>
+                <div className="security-panel-footer">
+                  <button
+                    type="button"
+                    className="security-text-button"
+                    onClick={() => setDialog({ type: "devices" })}
+                  >
+                    查看全部设备 <LineIcon name="chevron" />
+                  </button>
+                </div>
               ) : null}
             </Panel>
           </div>
@@ -444,7 +445,7 @@ export function SecurityCenterPage({ dataSource }: SecurityCenterPageProps) {
                 </span>
                 <span>
                   <strong>应用授权管理</strong>
-                  <small>查看有权获取你账号信息的应用授权详情，并管理授权</small>
+                  <small>查看并管理有权访问你账号信息的应用</small>
                 </span>
                 <LineIcon name="chevron" />
               </button>
@@ -546,8 +547,7 @@ export function SecurityCenterPage({ dataSource }: SecurityCenterPageProps) {
                       ) : null}
                     </strong>
                     <span>
-                      {device.location ? `${device.location} · ` : ""}
-                      最近活跃 {device.lastSeenAt}
+                      {deviceListSubtitle(device)}
                     </span>
                   </div>
                   <LineIcon name="chevron" />
@@ -607,19 +607,19 @@ export function SecurityCenterPage({ dataSource }: SecurityCenterPageProps) {
             <div className="security-dialog-list">
               {dialog.items.map((item) => (
                 <div key={item.id} className="security-dialog-app-row">
-                  <div>
-                    <strong>{item.name}</strong>
-                    <span>{item.description}</span>
+                  <strong>{item.name}</strong>
+                  <span>{item.description}</span>
+                  <div className="security-dialog-app-meta">
                     <time>授权于 {item.authorizedAt}</time>
+                    <button
+                      type="button"
+                      className="security-danger-button"
+                      disabled={pendingAction === `app-${item.id}`}
+                      onClick={() => void handleRevokeApplication(item)}
+                    >
+                      {pendingAction === `app-${item.id}` ? "取消中…" : "取消授权"}
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    className="security-danger-button"
-                    disabled={pendingAction === `app-${item.id}`}
-                    onClick={() => void handleRevokeApplication(item)}
-                  >
-                    {pendingAction === `app-${item.id}` ? "取消中…" : "取消授权"}
-                  </button>
                 </div>
               ))}
             </div>

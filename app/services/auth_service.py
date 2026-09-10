@@ -360,7 +360,12 @@ async def demo_login_user(
     return AuthResponse(user=to_user_response(user), tokens=tokens)
 
 
-async def refresh_tokens(db: AsyncSession, refresh_token: str) -> TokenResponse:
+async def refresh_tokens(
+    db: AsyncSession,
+    refresh_token: str,
+    *,
+    meta: SessionMeta | None = None,
+) -> TokenResponse:
     payload = decode_token(
         refresh_token,
         audience=settings.jwt_audience,
@@ -390,6 +395,15 @@ async def refresh_tokens(db: AsyncSession, refresh_token: str) -> TokenResponse:
     stored.revoked_at = now
     session.last_seen_at = now
     session.expires_at = now + timedelta(days=settings.jwt_refresh_expire_days)
+    if meta is not None:
+        if meta.device_label:
+            session.device_label = meta.device_label
+        if meta.ip_address:
+            session.ip_address = meta.ip_address
+        if meta.user_agent:
+            session.user_agent = meta.user_agent
+        if meta.location:
+            session.location = meta.location
     await db.flush()
     return await issue_tokens_with_rotation(db, user, session=session, rotated_from_id=stored.id)
 

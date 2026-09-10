@@ -61,6 +61,8 @@ export type ExchangeAuthorizationCodeParams = {
 export type AuthClientConfig = {
   baseUrl: string;
   fetchImpl?: typeof fetch;
+  /** Merged into every SDK request (e.g. `X-Device-Label`). */
+  defaultHeaders?: Record<string, string>;
 };
 
 export type AuthClient = {

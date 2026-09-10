@@ -56,7 +56,7 @@ body.security-body {
 
 .security-page {
   min-height: 100vh;
-  background: var(--mini-color-canvas);
+  background: var(--mini-color-surface);
 }
 
 .security-page--state {
@@ -104,7 +104,7 @@ body.security-body {
 .security-topbar {
   position: relative;
   z-index: 10;
-  height: 70px;
+  height: 64px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -205,52 +205,54 @@ body.security-body {
 }
 
 .security-avatar {
-  width: 82px;
-  height: 82px;
+  width: 56px;
+  height: 56px;
   display: inline-grid;
   place-items: center;
   border: 1px solid var(--mini-color-border-soft);
   border-radius: 50%;
   background: var(--mini-color-surface);
   color: var(--mini-color-ink);
-  font-size: 23px;
+  font-size: 16px;
   font-weight: 600;
-  letter-spacing: -0.08em;
+  letter-spacing: -0.04em;
 }
 
 .security-avatar--small {
-  width: 44px;
-  height: 44px;
-  border-width: 2px;
-  font-size: 13px;
+  width: 36px;
+  height: 36px;
+  border-width: 1px;
+  font-size: 12px;
 }
 
 .security-main {
-  width: min(1488px, calc(100% - 72px));
+  width: min(1120px, calc(100% - 48px));
   margin: 0 auto;
+  padding-bottom: 48px;
 }
 
 .security-hero {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 74px 0 48px;
+  padding: 36px 0 28px;
   text-align: center;
 }
 
 .security-hero h1 {
-  margin: 24px 0 12px;
+  margin: 14px 0 6px;
   color: var(--security-ink);
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 600;
   letter-spacing: -0.02em;
 }
 
 .security-hero p {
   margin: 0;
-  color: var(--mini-color-ink-soft);
-  font-size: 18px;
-  line-height: 1.6;
+  max-width: 28em;
+  color: var(--mini-color-muted);
+  font-size: 15px;
+  line-height: 1.5;
 }
 
 .security-hero strong {
@@ -260,14 +262,16 @@ body.security-body {
 
 .security-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
   align-items: start;
-  gap: 28px;
+  gap: 20px;
 }
 
 .security-column {
-  display: grid;
-  gap: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 0;
 }
 
 .security-panel {
@@ -275,21 +279,21 @@ body.security-body {
   border: 1px solid var(--mini-color-border-soft);
   border-radius: var(--mini-radius-surface);
   background: var(--mini-color-canvas);
-  padding: 30px 32px;
+  padding: 22px 24px;
 }
 
 .security-panel-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 30px;
-  margin-bottom: 24px;
+  min-height: 28px;
+  margin-bottom: 14px;
 }
 
 .security-panel-heading h2 {
   margin: 0;
   color: var(--security-ink);
-  font-size: 21px;
+  font-size: 18px;
   font-weight: 650;
   letter-spacing: -0.02em;
 }
@@ -297,12 +301,16 @@ body.security-body {
 .security-text-button {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 4px;
   border: 0;
   background: transparent;
-  color: var(--mini-color-ink);
-  font-size: 16px;
+  color: var(--mini-color-muted);
+  font-size: 14px;
   cursor: pointer;
+}
+
+.security-text-button:hover {
+  color: var(--mini-color-ink);
 }
 
 .security-chevron {
@@ -315,12 +323,12 @@ body.security-body {
 
 .security-text-button .security-chevron {
   color: currentColor;
-  font-size: 25px;
+  font-size: 18px;
 }
 
 .security-line-icon {
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   display: block;
 }
 
@@ -431,11 +439,10 @@ body.security-body {
 
 .security-device-row {
   display: grid;
-  grid-template-columns: 32px 1fr auto;
-  gap: 16px;
-  align-items: start;
-  min-height: 122px;
-  padding: 18px 0;
+  grid-template-columns: 28px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 0;
   border-bottom: 1px solid var(--security-line);
 }
 
@@ -450,7 +457,7 @@ body.security-body {
 }
 
 .security-device-row--button:hover .security-device-content strong {
-  color: var(--security-blue);
+  color: var(--mini-color-ink);
 }
 
 .security-device-content strong {
@@ -458,22 +465,24 @@ body.security-body {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-  color: var(--mini-color-ink-soft);
-  font-size: 18px;
-  font-weight: 500;
+  color: var(--mini-color-ink);
+  font-size: 15px;
+  font-weight: 550;
 }
 
+.security-current-device,
 .security-current-device--badge,
 .security-current-device--inline {
   display: inline-flex;
   align-items: center;
-  padding: 2px 8px;
-  border: 1px solid var(--mini-color-border);
-  border-radius: 6px;
-  background: var(--mini-color-canvas-soft, #f5f5f5);
-  color: var(--mini-color-muted);
-  font-size: 12px;
-  font-weight: 500;
+  padding: 1px 7px;
+  border: 1px solid var(--mini-color-border-soft);
+  border-radius: 999px;
+  background: var(--mini-color-surface);
+  color: var(--mini-color-ink-soft);
+  font-size: 11px;
+  font-weight: 550;
+  letter-spacing: 0;
 }
 
 .security-device-detail {
@@ -591,30 +600,38 @@ body.security-body {
 }
 
 .security-device-row:first-child {
-  padding-top: 2px;
+  padding-top: 0;
+}
+
+.security-device-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
 }
 
 .security-device-icon {
-  padding-top: 3px;
+  display: grid;
+  place-items: center;
   color: var(--mini-color-ink-soft);
 }
 
 .security-device-content {
   display: grid;
-  gap: 5px;
+  gap: 2px;
+  min-width: 0;
 }
 
 .security-device-content span {
   color: var(--mini-color-muted);
-  font-size: 16px;
-  line-height: 1.35;
+  font-size: 13px;
+  line-height: 1.4;
 }
 
-.security-current-device {
-  align-self: start;
-  padding: 3px 8px;
-  color: var(--mini-color-ink);
-  font-size: 16px;
+.security-panel-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--security-line);
 }
 
 .security-outline-button {
@@ -634,26 +651,6 @@ body.security-body {
   color: var(--security-blue);
 }
 
-.security-view-all {
-  width: 100%;
-  display: grid;
-  grid-template-columns: 1fr auto auto 1fr;
-  align-items: center;
-  gap: 14px;
-  border: 0;
-  background: transparent;
-  padding: 22px 0 4px;
-  color: var(--mini-color-ink-soft);
-  font-size: 16px;
-  cursor: pointer;
-}
-
-.security-view-all > span:first-child,
-.security-view-all > span:last-child {
-  height: 1px;
-  background: var(--security-line);
-}
-
 .security-simple-list {
   display: grid;
   gap: 18px;
@@ -662,15 +659,15 @@ body.security-body {
 .security-simple-list > button,
 .security-management-row {
   width: 100%;
-  min-height: 96px;
+  min-height: 0;
   display: grid;
   grid-template-columns: 1fr auto;
   align-items: center;
-  gap: 18px;
+  gap: 14px;
   border: 0;
   border-radius: var(--mini-radius-control);
   background: var(--mini-color-surface);
-  padding: 18px 22px;
+  padding: 16px 18px;
   text-align: left;
   cursor: pointer;
 }
@@ -683,20 +680,20 @@ body.security-body {
 .security-simple-list span,
 .security-management-row > span {
   display: grid;
-  gap: 7px;
+  gap: 4px;
 }
 
 .security-simple-list strong,
 .security-management-row strong {
-  color: var(--mini-color-ink-soft);
-  font-size: 17px;
-  font-weight: 500;
+  color: var(--mini-color-ink);
+  font-size: 15px;
+  font-weight: 550;
 }
 
 .security-simple-list small,
 .security-management-row small {
   color: var(--mini-color-muted);
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 400;
   line-height: 1.45;
 }
@@ -840,13 +837,18 @@ body.security-body {
 }
 
 .security-management-row {
-  grid-template-columns: 42px 1fr auto;
+  grid-template-columns: 36px 1fr auto;
 }
 
 .security-management-icon {
   display: grid !important;
   place-items: center;
-  color: var(--mini-color-ink);
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--mini-color-border-soft);
+  background: var(--mini-color-canvas);
+  color: var(--mini-color-ink-soft);
 }
 
 .security-guide-grid {
@@ -889,9 +891,9 @@ body.security-body {
 }
 
 .security-footer {
-  padding: 70px 0 50px;
+  padding: 28px 0 8px;
   color: var(--mini-color-subtle);
-  font-size: 15px;
+  font-size: 13px;
   text-align: center;
 }
 
@@ -1072,8 +1074,26 @@ body.security-body {
   gap: 16px;
 }
 
+.security-dialog-app-row {
+  display: grid;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.security-dialog-app-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 2px;
+}
+
+.security-dialog-app-meta .security-danger-button {
+  flex-shrink: 0;
+}
+
 .security-dialog-device-row > div,
-.security-dialog-app-row > div {
+.security-dialog-app-row > div:not(.security-dialog-app-meta) {
   display: grid;
   gap: 4px;
   min-width: 0;
