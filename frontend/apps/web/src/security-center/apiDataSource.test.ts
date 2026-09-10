@@ -83,4 +83,39 @@ describe("createApiSecurityCenterDataSource", () => {
       expect.objectContaining<Partial<SecurityCenterError>>({ code: "NOT_SUPPORTED" }),
     );
   });
+
+  it("maps enriched operations fields", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify([
+            {
+              id: "op-1",
+              action: "登录/切换账号",
+              device: "iPhone 14 Plus",
+              occurred_at: "2026/09/10 16:14:44",
+              location: "浙江省杭州市",
+              kind: "mobile",
+              app_name: "Minibot",
+              ip_address: "115.196.84.12",
+              ip_masked: "115.196.84.***",
+              status: "设备活跃",
+            },
+          ]),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      ),
+    );
+
+    const source = createApiSecurityCenterDataSource("https://auth.example");
+    const ops = await source.getOperations();
+    expect(ops[0]).toMatchObject({
+      device: "iPhone 14 Plus",
+      kind: "mobile",
+      appName: "Minibot",
+      ipMasked: "115.196.84.***",
+      status: "设备活跃",
+    });
+  });
 });

@@ -63,6 +63,11 @@ type ApiSecurityOperation = {
   device: string;
   occurred_at: string;
   location: string;
+  kind?: "browser" | "desktop" | "mobile" | null;
+  app_name?: string | null;
+  ip_address?: string | null;
+  ip_masked?: string | null;
+  status?: string | null;
 };
 
 type ApiAuthorizedApplication = {
@@ -174,6 +179,11 @@ export function createApiSecurityCenterDataSource(baseUrl: string): SecurityCent
           device: item.device,
           occurredAt: item.occurred_at,
           location: item.location,
+          kind: item.kind,
+          appName: item.app_name,
+          ipAddress: item.ip_address,
+          ipMasked: item.ip_masked,
+          status: item.status,
         }),
       );
     },

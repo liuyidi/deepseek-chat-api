@@ -55,6 +55,11 @@ export type SecurityOperation = {
   device: string;
   occurredAt: string;
   location: string;
+  kind?: "browser" | "desktop" | "mobile" | null;
+  appName?: string | null;
+  ipAddress?: string | null;
+  ipMasked?: string | null;
+  status?: string | null;
 };
 
 export type AuthorizedApplication = {

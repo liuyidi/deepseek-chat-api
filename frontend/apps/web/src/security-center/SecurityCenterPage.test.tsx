@@ -56,7 +56,10 @@ describe("SecurityCenterPage", () => {
   it("confirms and removes a non-current login device", async () => {
     const user = await renderLoadedPage();
 
-    await user.click(screen.getByRole("button", { name: "退出 Safari 登录" }));
+    await user.click(screen.getByRole("button", { name: /Safari/ }));
+    expect(screen.getByRole("dialog", { name: "登录设备详情" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "退出该设备" }));
     expect(screen.getByRole("dialog", { name: "退出此设备？" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "确认退出" }));
@@ -70,14 +73,15 @@ describe("SecurityCenterPage", () => {
   it("loads operation history in an accessible dialog", async () => {
     const user = await renderLoadedPage();
 
-    await user.click(screen.getByRole("button", { name: "操作记录" }));
+    await user.click(screen.getByRole("button", { name: /使用记录/ }));
 
-    const dialog = await screen.findByRole("dialog", { name: "操作记录" });
+    const dialog = await screen.findByRole("dialog", { name: "最近使用记录" });
     await waitFor(() => {
       expect(dialog).toHaveTextContent("以下为近 30 天内最近的 10 条账号登录、切换或主动登出记录");
-      expect(dialog).toHaveTextContent("登录/切换账号");
+      expect(dialog).toHaveTextContent("Chrome · macOS");
       expect(dialog).toHaveTextContent("2026/08/21");
       expect(dialog).toHaveTextContent("杭州市");
+      expect(dialog).toHaveTextContent("设备活跃");
     });
   });
 

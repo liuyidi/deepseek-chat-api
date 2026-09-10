@@ -128,6 +128,11 @@ const operations: SecurityOperation[] = [
     device: "Chrome · macOS",
     occurredAt: "2026/08/21 12:42:24",
     location: "杭州市",
+    kind: "desktop",
+    appName: "Minibot",
+    ipAddress: "115.196.84.12",
+    ipMasked: "115.196.84.***",
+    status: "设备活跃",
   },
   {
     id: "operation-2",
@@ -135,6 +140,11 @@ const operations: SecurityOperation[] = [
     device: "Chrome · macOS",
     occurredAt: "2026/08/21 12:41:58",
     location: "杭州市",
+    kind: "desktop",
+    appName: "Minibot",
+    ipAddress: "115.196.84.12",
+    ipMasked: "115.196.84.***",
+    status: "已退出",
   },
   {
     id: "operation-3",
@@ -142,6 +152,11 @@ const operations: SecurityOperation[] = [
     device: "Safari · iOS",
     occurredAt: "2026/08/20 21:08:55",
     location: "杭州市",
+    kind: "mobile",
+    appName: "Minibot",
+    ipAddress: "115.196.84.20",
+    ipMasked: "115.196.84.***",
+    status: "设备活跃",
   },
 ];
 

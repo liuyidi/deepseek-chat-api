@@ -17,6 +17,7 @@ export type SecurityCenterPageProps = {
 
 type DialogState =
   | { type: "device"; device: SecurityDevice }
+  | { type: "device-detail"; device: SecurityDevice }
   | { type: "devices" }
   | { type: "operations"; items: SecurityOperation[] | null }
   | { type: "applications"; items: AuthorizedApplication[] | null }
@@ -30,6 +31,30 @@ function formatOperationTime(occurredAt: string): string {
 
 function formatOperationDate(occurredAt: string): string {
   return occurredAt.trim().split(/\s+/)[0] || occurredAt;
+}
+
+function operationLocationLine(item: SecurityOperation): string {
+  if (item.location && item.ipMasked) {
+    return `${item.location} (${item.ipMasked})`;
+  }
+  if (item.location && item.location !== "-") {
+    return item.location;
+  }
+  return item.ipMasked || item.location || "-";
+}
+
+function deviceLoginMethod(device: SecurityDevice): string {
+  return [device.appName, device.system].filter(Boolean).join(" · ");
+}
+
+function deviceIpLine(device: SecurityDevice): string {
+  const masked = device.ipAddress
+    ? device.ipAddress.replace(/^(\d+\.\d+\.\d+)\.\d+$/, "$1.***")
+    : null;
+  if (masked && device.location) {
+    return `${masked} (${device.location})`;
+  }
+  return masked || device.location || "-";
 }
 
 function groupOperationsByDate(items: SecurityOperation[]): { date: string; items: SecurityOperation[] }[] {
@@ -368,7 +393,7 @@ export function SecurityCenterPage({ dataSource }: SecurityCenterPageProps) {
               title="登录设备"
               action={
                 <button type="button" className="security-text-button" onClick={() => void openOperations()}>
-                  操作记录 <LineIcon name="chevron" />
+                  使用记录 <LineIcon name="chevron" />
                 </button>
               }
             >
@@ -377,32 +402,27 @@ export function SecurityCenterPage({ dataSource }: SecurityCenterPageProps) {
                   <p className="security-empty">暂无登录设备</p>
                 ) : (
                   devices.slice(0, 3).map((device) => (
-                    <div className="security-device-row" key={device.id}>
+                    <button
+                      type="button"
+                      className="security-device-row security-device-row--button"
+                      key={device.id}
+                      onClick={() => setDialog({ type: "device-detail", device })}
+                    >
                       <span className="security-device-icon">
                         <LineIcon name={device.kind === "browser" ? "globe" : "desktop"} />
                       </span>
                       <div className="security-device-content">
-                        <strong>{device.name}</strong>
-                        <span>
-                          系统：{device.system}
-                          {device.appName ? ` · 来自 ${device.appName}` : ""}
-                        </span>
-                        <span>登录：{device.loggedInAt}</span>
+                        <strong>
+                          {device.name}
+                          {device.isCurrent ? (
+                            <span className="security-current-device">本机</span>
+                          ) : null}
+                        </strong>
+                        {device.location ? <span>{device.location}</span> : null}
                         <span>最近活跃：{device.lastSeenAt}</span>
                       </div>
-                      {device.isCurrent ? (
-                        <span className="security-current-device">本机</span>
-                      ) : (
-                        <button
-                          type="button"
-                          className="security-outline-button"
-                          aria-label={`退出 ${device.name} 登录`}
-                          onClick={() => setDialog({ type: "device", device })}
-                        >
-                          退出登录
-                        </button>
-                      )}
-                    </div>
+                      <LineIcon name="chevron" />
+                    </button>
                   ))
                 )}
               </div>
@@ -461,6 +481,50 @@ export function SecurityCenterPage({ dataSource }: SecurityCenterPageProps) {
         </Modal>
       ) : null}
 
+      {dialog?.type === "device-detail" ? (
+        <Modal
+          title="登录设备详情"
+          onClose={() => setDialog(null)}
+          footer={
+            dialog.device.isCurrent ? undefined : (
+              <button
+                type="button"
+                className="security-danger-button security-danger-button--wide"
+                onClick={() => setDialog({ type: "device", device: dialog.device })}
+              >
+                退出该设备
+              </button>
+            )
+          }
+        >
+          <div className="security-device-detail">
+            <span className="security-device-detail-icon" aria-hidden="true">
+              <LineIcon name={dialog.device.kind === "browser" ? "globe" : "desktop"} />
+            </span>
+            <h2 className="security-device-detail-name">{dialog.device.name}</h2>
+            {dialog.device.isCurrent ? (
+              <span className="security-current-device security-current-device--badge">本机</span>
+            ) : null}
+            <dl className="security-device-detail-card">
+              <div>
+                <dt>最近使用</dt>
+                <dd>{dialog.device.lastSeenAt}</dd>
+              </div>
+              {deviceLoginMethod(dialog.device) ? (
+                <div>
+                  <dt>登录方式</dt>
+                  <dd>{deviceLoginMethod(dialog.device)}</dd>
+                </div>
+              ) : null}
+              <div>
+                <dt>IP</dt>
+                <dd>{deviceIpLine(dialog.device)}</dd>
+              </div>
+            </dl>
+          </div>
+        </Modal>
+      ) : null}
+
       {dialog?.type === "devices" ? (
         <Modal title="全部登录设备" onClose={() => setDialog(null)}>
           {devices.length === 0 ? (
@@ -468,25 +532,26 @@ export function SecurityCenterPage({ dataSource }: SecurityCenterPageProps) {
           ) : (
             <div className="security-dialog-list">
               {devices.map((device) => (
-                <div key={device.id} className="security-dialog-device-row">
+                <button
+                  key={device.id}
+                  type="button"
+                  className="security-dialog-device-row security-dialog-device-row--button"
+                  onClick={() => setDialog({ type: "device-detail", device })}
+                >
                   <div>
-                    <strong>{device.name}</strong>
+                    <strong>
+                      {device.name}
+                      {device.isCurrent ? (
+                        <span className="security-current-device security-current-device--inline">本机</span>
+                      ) : null}
+                    </strong>
                     <span>
-                      {device.system} · 登录 {device.loggedInAt}
-                      {device.isCurrent ? " · 本机" : ""}
+                      {device.location ? `${device.location} · ` : ""}
+                      最近活跃 {device.lastSeenAt}
                     </span>
                   </div>
-                  {device.isCurrent ? null : (
-                    <button
-                      type="button"
-                      className="security-outline-button"
-                      aria-label={`退出 ${device.name} 登录`}
-                      onClick={() => setDialog({ type: "device", device })}
-                    >
-                      退出登录
-                    </button>
-                  )}
-                </div>
+                  <LineIcon name="chevron" />
+                </button>
               ))}
             </div>
           )}
@@ -494,11 +559,11 @@ export function SecurityCenterPage({ dataSource }: SecurityCenterPageProps) {
       ) : null}
 
       {dialog?.type === "operations" ? (
-        <Modal title="操作记录" onClose={() => setDialog(null)}>
+        <Modal title="最近使用记录" onClose={() => setDialog(null)}>
           {dialog.items === null ? (
-            <p>正在加载操作记录…</p>
+            <p>正在加载使用记录…</p>
           ) : dialog.items.length === 0 ? (
-            <p className="security-empty">暂无操作记录</p>
+            <p className="security-empty">暂无使用记录</p>
           ) : (
             <div className="security-operations">
               <p className="security-operations-lead">
@@ -509,16 +574,18 @@ export function SecurityCenterPage({ dataSource }: SecurityCenterPageProps) {
                   <h3 className="security-operations-date">{group.date}</h3>
                   <div className="security-operations-card">
                     {group.items.map((item) => (
-                      <div key={item.id} className="security-operations-row">
+                      <div key={item.id} className="security-operations-row security-operations-row--rich">
+                        <span className="security-operations-icon" aria-hidden="true">
+                          <LineIcon name={item.kind === "browser" ? "globe" : "desktop"} />
+                        </span>
                         <div className="security-operations-row-body">
-                          <strong>{item.action}</strong>
-                          <span className="security-operations-meta">
-                            <span>{formatOperationTime(item.occurredAt)}</span>
-                            <span aria-hidden="true">|</span>
-                            <span>{item.location}</span>
-                            <span aria-hidden="true">|</span>
-                            <span>{item.device}</span>
-                          </span>
+                          <strong>{item.device}</strong>
+                          {item.appName ? <span className="security-operations-app">{item.appName}</span> : null}
+                          <span className="security-operations-place">{operationLocationLine(item)}</span>
+                        </div>
+                        <div className="security-operations-trailing">
+                          <span>{formatOperationTime(item.occurredAt)}</span>
+                          <strong>{item.status || item.action}</strong>
                         </div>
                       </div>
                     ))}
